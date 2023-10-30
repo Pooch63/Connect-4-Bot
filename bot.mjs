@@ -1,12 +1,14 @@
+import { genAttacks } from "./attacks.mjs";
 import * as debug from "./debug.mjs";
 
-const WIDTH = 7;
-const HEIGHT = 6;
-const WINNING_LENGTH = 4;
-
-const EMPTY = 0;
-const PLAYER = 1;
-const OPPONENT = 3;
+import {
+  WIDTH,
+  HEIGHT,
+  WINNING_LENGTH,
+  EMPTY,
+  PLAYER,
+  OPPONENT,
+} from "./globals.mjs";
 
 //Clones object. Assumes values are primitives
 function cloneObject(obj_) {
@@ -20,6 +22,8 @@ function clone1DArray(arr_) {
   for (let el of arr_) arr.push(el);
   return arr;
 }
+
+const attacks = genAttacks();
 
 class Board {
   //Given an index on the board, return the index of that spot reflected across
@@ -120,20 +124,42 @@ class Board {
       }
     };
 
-    //Add rows
-    for (let row = 0; row < HEIGHT; row += 1) {
-      //Number of pieces in a row we've found
-      let y = row * WIDTH;
+    console.time("Row: ");
+    for (let i = 0; i < 100_000; i += 1) {
+      //Add rows
+      for (let row = 0; row < HEIGHT; row += 1) {
+        let ind = "b";
+        let y = row * WIDTH;
 
-      for (let x = 0; x < WIDTH; x += 1) {
-        let square = this.board[x + y];
-        if (square != EMPTY) continue;
+        let squares = this.board.slice(y, y + WIDTH);
+        for (let square of squares) ind += square.toString();
+        ind += "p" + type.toString();
+        ind += "y" + row.toString();
 
-        let row_ = this.board.slice(y, y + WIDTH);
-        row_[x] = type;
-        if (checkForConsecutives(row_)) lanes[x + y] = 1;
+        let lanes_ = attacks[ind];
+        for (let lane of lanes_) lanes[lane] = 1;
       }
     }
+    console.timeEnd("Row: ");
+
+    console.time("row2: ");
+
+    for (let i = 0; i < 100_000; i += 1) {
+      for (let row = 0; row < HEIGHT; row += 1) {
+        //Number of pieces in a row we've found
+        let y = row * WIDTH;
+
+        for (let x = 0; x < WIDTH; x += 1) {
+          let square = this.board[x + y];
+          if (square != EMPTY) continue;
+
+          let row_ = this.board.slice(y, y + WIDTH);
+          row_[x] = type;
+          if (checkForConsecutives(row_)) lanes[x + y] = 1;
+        }
+      }
+    }
+    console.timeEnd("row2: ");
 
     //Add columns
     for (let column = 0; column < WIDTH; column += 1) {
@@ -403,6 +429,22 @@ const timeFunc = (c, f) => {
 };
 
 let b = new Board();
+
+b.setSquareFromPos(2, 2, OPPONENT);
+b.setSquareFromPos(4, 2, OPPONENT);
+b.setSquareFromPos(5, 2, OPPONENT);
+
+console.time("s");
+for (let i = 0; i < 10_000; i += 1) {
+  let ind = "b";
+  let y = 2 * WIDTH;
+  let row = b.board.slice(y, y + WIDTH);
+  for (let s of row) ind += s.toString();
+  ind += "p" + (2).toString();
+  ind += "y" + (2).toString();
+  let z = attacks[ind];
+}
+console.timeEnd("s");
 
 function debugSetStartingPos() {
   // b.setBoard(

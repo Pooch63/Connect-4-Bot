@@ -1,162 +1,77 @@
-function calcLanes(type) {
-  let lanes = {};
-  const OPPOSING = type == PLAYER ? OPPONENT : PLAYER;
+import {
+  WIDTH,
+  HEIGHT,
+  WINNING_LENGTH,
+  EMPTY,
+  PLAYER,
+  OPPONENT,
+} from "./globals.mjs";
 
-  console.time("Row");
-  for (let i = 0; i < 10_000; i += 1) {
-    //Add rows
-    for (let row = 0; row < HEIGHT; row += 1) {
-      //Number of pieces in a row we've found
-      let y = row * HEIGHT;
-      let consecutive = 0;
+//Clones 1D array of primitives
+function clone1DArray(arr_) {
+  let arr = [];
+  for (let el of arr_) arr.push(el);
+  return arr;
+}
 
-      //Store the last empty square we found, so that if we find that there
-      //is an empty square between three of our pieces, we mark it as a lane.
-      let lastEmpty = null;
-      let updatedLastEmpty = false;
+export function genAttacks() {
+  const checkForConsecutives = (row, type) => {
+    let consecutive = 0;
+    for (let square of row) {
+      if (square == type) consecutive += 1;
+      else consecutive = 0;
 
-      for (let x = 0; x < WIDTH; x += 1) {
-        if (WIDTH - x + 1 < WINNING_LENGTH - consecutive) break;
+      if (consecutive >= WINNING_LENGTH) return true;
+    }
+  };
 
-        let index = x + y;
-        let square = this.board[index];
+  function genLanes(row, type) {
+    let lanes = [];
+    for (let x = 0; x < WIDTH; x += 1) {
+      let square = row[x];
+      if (square != EMPTY) continue;
 
-        if (square == OPPOSING) {
-          consecutive = 0;
-          updatedLastEmpty = false;
-        }
-        if (square == type) consecutive += 1;
+      let row_ = clone1DArray(row);
+      row_[x] = type;
+      if (checkForConsecutives(row_, type)) lanes.push(x);
+    }
+    return lanes;
+  }
 
-        if (square == EMPTY) {
-          //If we're at an empty square after 3 or more of our pieces in a row,
-          //include it as a lane.
-          if (consecutive >= WINNING_LENGTH - 1) {
-            lanes[index] = 1;
-            updatedLastEmpty = false;
-            consecutive = 0;
-          }
+  let attacks = {};
 
-          //Update the last empty square we've seen. If we've already seen an empty square
-          //in our potential winning chain of pieces, that means that it's no longer possible
-          //to complete the chain we've seen, and we're starting from scratch.
-          lastEmpty = index;
-          if (updatedLastEmpty) consecutive = 0;
-          if (consecutive > 0) updatedLastEmpty = true;
-        }
-        if (consecutive >= WINNING_LENGTH) updatedLastEmpty = false;
-        if (consecutive >= WINNING_LENGTH - 1) {
-          if (square == type && lastEmpty != null) lanes[lastEmpty] = 1;
+  let row = [0, 0, 0, 0, 0, 0, 0];
 
-          if (updatedLastEmpty) consecutive = 0;
-          updatedLastEmpty = false;
-        }
+  for (let i = 0; i < 3 ** WIDTH; i += 1) {
+    row[0] += 1;
+    let b = 0;
+    while (row[b] > 2) {
+      row[b] = 0;
+      if (b < WIDTH - 1) row[b + 1] += 1;
+      b += 1;
+    }
+    let ind = "b";
+    for (let bit of row) ind += bit.toString();
+
+    let playerLanes = genLanes(row, PLAYER);
+    let opponentLanes = genLanes(row, OPPONENT);
+
+    for (let y = 0; y < HEIGHT; y += 1) {
+      let add = y * WIDTH;
+
+      let playerLanesAdded = clone1DArray(playerLanes);
+      for (let x = 0; x < playerLanes.length; x += 1)
+        playerLanesAdded[x] += add;
+
+      let opponentLanesAdded = clone1DArray(opponentLanes);
+      for (let x = 0; x < opponentLanes.length; x += 1) {
+        opponentLanesAdded[x] += add;
       }
+
+      attacks[ind + "p1y" + y.toString()] = playerLanesAdded;
+      attacks[ind + "p2y" + y.toString()] = opponentLanesAdded;
     }
   }
-  console.timeEnd("Row");
-  console.time("Col");
-  for (let i = 0; i < 10_000; i += 1) {
-    //Add columns
-    for (let column = 0; column < WIDTH; column += 1) {
-      //Number of pieces in a row we've found
-      let consecutive = 0;
 
-      for (let y = 0; y < HEIGHT; y += 1) {
-        let index = column + y * WIDTH;
-        let square = this.board[index];
-        if (square == type) consecutive += 1;
-
-        if (square == EMPTY && consecutive >= WINNING_LENGTH - 1) {
-          lanes[index] = 1;
-        }
-
-        if (square != type) consecutive = 0;
-      }
-    }
-  }
-  console.timeEnd("Col");
-  console.time("Diag");
-  for (let i = 0; i < 10_000; i += 1) {
-    //Add diagonals
-    for (let index of this.diagonalCheckStarts) {
-      let lineLength = WIDTH - (index % WIDTH);
-
-      //We store mirrored vars because we're checking for left-to-right
-      //diagonals on both the board and the mirrored version of the board.
-
-      //Number of pieces in a row we've found.
-      let consecutive = 0;
-      let mirrorConsecutive = 0;
-
-      //Store the last empty square we found, so that if we find that there
-      //is an empty square between three of our pieces, we mark it as a lane.
-      let lastEmpty = null;
-      let lastMirrorEmpty = null;
-
-      let updatedLastEmpty = false;
-      let updatedLastMirrorEmpty = false;
-
-      for (let i = 0; i < lineLength; i += 1) {
-        let square = this.board[index];
-        let mirrorSquare = this.mirroredBoard[index];
-
-        if (square == OPPOSING) {
-          consecutive = 0;
-          updatedLastEmpty = false;
-        }
-        if (square == type) consecutive += 1;
-
-        if (square == EMPTY) {
-          if (consecutive >= WINNING_LENGTH - 1) {
-            lanes[index] = 1;
-            updatedLastEmpty = false;
-            consecutive = 0;
-          }
-
-          lastEmpty = index;
-          if (updatedLastEmpty) consecutive = 0;
-          if (consecutive > 0) updatedLastEmpty = true;
-        }
-        if (consecutive >= WINNING_LENGTH) updatedLastEmpty = false;
-        if (consecutive >= WINNING_LENGTH - 1) {
-          if (square == type && lastEmpty != null) lanes[lastEmpty] = 1;
-
-          if (updatedLastEmpty) consecutive = 0;
-          updatedLastEmpty = false;
-        }
-
-        if (mirrorSquare == OPPOSING) {
-          mirrorConsecutive = 0;
-          updatedLastMirrorEmpty = false;
-        }
-        if (mirrorSquare == type) mirrorConsecutive += 1;
-
-        if (mirrorSquare == EMPTY) {
-          if (mirrorConsecutive >= WINNING_LENGTH - 1) {
-            lanes[Board.mirrorIndex(index)] = 1;
-            updatedLastMirrorEmpty = false;
-            mirrorConsecutive = 0;
-          }
-
-          lastMirrorEmpty = index;
-          if (updatedLastMirrorEmpty) mirrorConsecutive = 0;
-          if (mirrorConsecutive > 0) updatedLastMirrorEmpty = true;
-        }
-        if (mirrorConsecutive >= WINNING_LENGTH) updatedLastMirrorEmpty = false;
-        if (mirrorConsecutive >= WINNING_LENGTH - 1) {
-          if (mirrorSquare == type && lastEmpty != null) {
-            lanes[Board.mirrorIndex(lastMirrorEmpty)] = 1;
-          }
-
-          if (updatedLastMirrorEmpty) mirrorConsecutive = 0;
-          updatedLastMirrorEmpty = false;
-        }
-
-        index = index + WIDTH + 1;
-      }
-    }
-  }
-  console.timeEnd("Diag");
-
-  return lanes;
+  return attacks;
 }
