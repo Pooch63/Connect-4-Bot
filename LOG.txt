@@ -1,0 +1,45 @@
+Current position: 
+file:///C:/Users/kiyaa/Project/Github/Connect-4-Bot/display-board.html?board=RRRBBREBBBRREEBBRBBEERRBBREEBRRREEEEEEBEEE (Opponent displayed in red)
+Testing move
+	Index: 35
+	Pos: (0, 5)
+	Searching at a depth of: 5
+	Board after playing move: 
+	file:///C:/Users/kiyaa/Project/Github/Connect-4-Bot/display-board.html?board=RRRBBREBBBRREEBBRBBEERRBBREEBRRREEEBEEBEEE (Opponent displayed in red)
+	Position was assigned a score of: -Infinity. Current best score: -Infinity
+Testing move
+	Index: 36
+	Pos: (1, 5)
+	Searching at a depth of: 5
+	Board after playing move: 
+	file:///C:/Users/kiyaa/Project/Github/Connect-4-Bot/display-board.html?board=RRRBBREBBBRREEBBRBBEERRBBREEBRRREEEEBEBEEE (Opponent displayed in red)
+	Position was assigned a score of: -Infinity. Current best score: -Infinity
+Testing move
+	Index: 37
+	Pos: (2, 5)
+	Searching at a depth of: 5
+	Board after playing move: 
+	file:///C:/Users/kiyaa/Project/Github/Connect-4-Bot/display-board.html?board=RRRBBREBBBRREEBBRBBEERRBBREEBRRREEEEEBBEEE (Opponent displayed in red)
+	Position was assigned a score of: -Infinity. Current best score: -Infinity
+Testing move
+	Index: 32
+	Pos: (4, 4)
+	Searching at a depth of: 5
+	Board after playing move: 
+	file:///C:/Users/kiyaa/Project/Github/Connect-4-Bot/display-board.html?board=RRRBBREBBBRREEBBRBBEERRBBREEBRRRBEEEEEBEEE (Opponent displayed in red)
+	Position was assigned a score of: -Infinity. Current best score: -Infinity
+Testing move
+	Index: 12
+	Pos: (5, 1)
+	Searching at a depth of: 5
+	Board after playing move: 
+	file:///C:/Users/kiyaa/Project/Github/Connect-4-Bot/display-board.html?board=RRRBBREBBBRRBEBBRBBEERRBBREEBRRREEEEEEBEEE (Opponent displayed in red)
+	Position was assigned a score of: -Infinity. Current best score: -Infinity
+Testing move
+	Index: 6
+	Pos: (6, 0)
+	Searching at a depth of: 5
+	Board after playing move: 
+	file:///C:/Users/kiyaa/Project/Github/Connect-4-Bot/display-board.html?board=RRRBBRBBBBRREEBBRBBEERRBBREEBRRREEEEEEBEEE (Opponent displayed in red)
+	Position was assigned a score of: Infinity. Current best score: -Infinity
+Best move at index 6

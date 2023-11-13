@@ -111,7 +111,7 @@ class Board {
     let lanes = {};
     const OPPOSING = type == PLAYER ? OPPONENT : PLAYER;
 
-    const checkForConsecutives = (row) => {
+    const checkForConsecutivesInRow = (row) => {
       let consecutive = 0;
       for (let square of row) {
         if (square == type) consecutive += 1;
@@ -131,7 +131,7 @@ class Board {
 
         let row_ = this.board.slice(y, y + WIDTH);
         row_[x] = type;
-        if (checkForConsecutives(row_)) lanes[x + y] = 1;
+        if (checkForConsecutivesInRow(row_)) lanes[x + y] = 1;
       }
     }
 
@@ -256,7 +256,6 @@ class Board {
         this.opponentLanes[index] = 0;
       }
     } else {
-      console.log(this.opponentLanes);
       //Did opponent win?
       if (this.opponentLanes[index] == 1) {
         this.opponentWon = true;
@@ -292,7 +291,7 @@ class Board {
     let indices = [];
     for (let i = 0; i < this.floors.length; i += 1) {
       let floor = this.floors[i];
-      if (floor < HEIGHT - 1) indices.push(floor * WIDTH + i);
+      if (floor <= HEIGHT - 1) indices.push(floor * WIDTH + i);
     }
 
     return indices;
@@ -337,20 +336,15 @@ class Board {
 
     if (player) {
       for (let index of indices) {
-        console.log(`Player index: ${index}`);
         this.savePosToHistory();
         this.setSquare(index, squareType, true);
         let score = this.minimax(depth - 1, !player);
         if (score > bestScore) bestScore = score;
-        console.log(`Our score: ${score}`);
-
         this.goToLastPos();
       }
     }
     if (!player) {
       for (let index of indices) {
-        console.log(`Opponent index: ${index}`);
-
         this.savePosToHistory();
         this.setSquare(index, squareType, true);
         let score = this.minimax(depth - 1, !player);
@@ -362,20 +356,42 @@ class Board {
   }
 
   //Returns 0 - WIDTH, basically column where we want to play
-  bestMove() {
+  bestMove(depth = 5) {
     let indices = this.getPlayableIndices();
     console.log(indices, this.floors);
+
+    log.writeln(`Current position: `);
+    log.logBoard(this.board);
 
     let bestMove = indices[0];
     let bestScore = Number.NEGATIVE_INFINITY;
     for (let index of indices) {
+      log.tab = false;
+      log.writeln(`Testing move`);
+      log.tab = true;
+      log.writeln(`Index: ${index}`);
+      log.writeln(
+        `Pos: (${index % WIDTH}, ${(index - (index % WIDTH)) / WIDTH})`
+      );
+      log.writeln(`Searching at a depth of: ${depth}`);
       this.savePosToHistory();
       this.setSquare(index, PLAYER, true);
-      let score = this.minimax(3, true);
-      if (score > bestScore) bestMove = index;
-      console.log(`Score: ${score}`);
+      let score = this.minimax(depth, false);
+      log.writeln(`Board after playing move: `);
+      log.logBoard(b.board);
+      log.writeln(
+        `Position was assigned a score of: ${score}. Current best score: ${bestScore}`
+      );
+      if (score > bestScore) {
+        bestScore = score;
+        bestMove = index;
+      }
       this.goToLastPos();
     }
+
+    log.tab = false;
+    log.writeln(`Best move at index ${bestMove}`);
+
     return bestMove;
   }
 
@@ -387,12 +403,16 @@ class Board {
       let p = playerMoves[i] - (subtract ? 1 : 0),
         o = opponentMoves[i] - (subtract ? 1 : 0);
       if (!isNaN(p) && p >= 0) {
-        this.setSquareFromPos(p, this.floors[p], PLAYER);
+        this.setSquareOnColumn(p, PLAYER);
       }
       if (!isNaN(o) && o >= 0) {
-        this.setSquareFromPos(o, this.floors[o], OPPONENT);
+        this.setSquareOnColumn(o, OPPONENT);
       }
     }
+  }
+  //Debug purposes. Slide a piece in at a certain column, on top of that column's floor
+  setSquareOnColumn(column, player) {
+    this.setSquareFromPos(column, this.floors[column], player);
   }
 }
 
@@ -405,20 +425,22 @@ const timeFunc = (c, f) => {
 let b = new Board();
 
 function debugSetStartingPos() {
-  // b.setBoard(
-  //   [5, 3, 5, 5, 4, 4, 3, 7, 7, 7, 1, 1, 1, 4, 5],
-  //   [4, 4, 5, 3, 3, 3, 4, 7, 7, 7, 1, 1, 1, 3, 5]
-  // );
-  b.setSquareFromPos(2, 0, PLAYER);
-  b.setSquareFromPos(4, 0, PLAYER);
-  b.setSquareFromPos(5, 0, PLAYER);
   console.log("CALCULATING");
-  console.log(b.calcLanes(PLAYER));
+  console.log(b.calcLanes(OPPONENT));
 }
 debugSetStartingPos();
 
-// console.log("Best move", b.bestMove());
-// console.log(b.board);
+const log = new debug.Log("./", {
+  displayBoardPath:
+    "file:///C:/Users/kiyaa/Project/Github/Connect-4-Bot/display-board.html",
+  newline: true,
+});
+log.clearLog();
+// debug.playBot(b, b.bestMove);
 
-// console.log(b.evalPos(PLAYER));
-// timeFunc(1_000, () => b.calcLanes(PLAYER));
+b.setBoard(
+  [4, 5, 4, 4, 4, 3, 2, 2, 3, 1, 1, 1, 5],
+  [4, 3, 6, 4, 2, 1, 3, 2, 2, 3, 1, 5, 5],
+  true
+);
+console.log(b.bestMove());
