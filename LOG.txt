@@ -27,19 +27,19 @@ Testing move
 	Searching at a depth of: 5
 	Board after playing move: 
 	file:///C:/Users/kiyaa/Project/Github/Connect-4-Bot/display-board.html?board=RRRBBREBBBRREEBBRBBEERRBBREEBRRRBEEEEEBEEE (Opponent displayed in red)
-	Position was assigned a score of: -Infinity. Current best score: -Infinity
+	Position was assigned a score of: 0. Current best score: -Infinity
 Testing move
 	Index: 12
 	Pos: (5, 1)
 	Searching at a depth of: 5
 	Board after playing move: 
 	file:///C:/Users/kiyaa/Project/Github/Connect-4-Bot/display-board.html?board=RRRBBREBBBRRBEBBRBBEERRBBREEBRRREEEEEEBEEE (Opponent displayed in red)
-	Position was assigned a score of: -Infinity. Current best score: -Infinity
+	Position was assigned a score of: -Infinity. Current best score: 0
 Testing move
 	Index: 6
 	Pos: (6, 0)
 	Searching at a depth of: 5
 	Board after playing move: 
 	file:///C:/Users/kiyaa/Project/Github/Connect-4-Bot/display-board.html?board=RRRBBRBBBBRREEBBRBBEERRBBREEBRRREEEEEEBEEE (Opponent displayed in red)
-	Position was assigned a score of: Infinity. Current best score: -Infinity
-Best move at index 6
+	Position was assigned a score of: -Infinity. Current best score: 0
+Best move at index 32

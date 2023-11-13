@@ -111,7 +111,7 @@ class Board {
     let lanes = {};
     const OPPOSING = type == PLAYER ? OPPONENT : PLAYER;
 
-    const checkForConsecutivesInRow = (row) => {
+    const checkForConsecutives = (row) => {
       let consecutive = 0;
       for (let square of row) {
         if (square == type) consecutive += 1;
@@ -131,7 +131,7 @@ class Board {
 
         let row_ = this.board.slice(y, y + WIDTH);
         row_[x] = type;
-        if (checkForConsecutivesInRow(row_)) lanes[x + y] = 1;
+        if (checkForConsecutives(row_)) lanes[x + y] = 1;
       }
     }
 
@@ -156,78 +156,33 @@ class Board {
     for (let index of this.diagonalCheckStarts) {
       let lineLength = WIDTH - (index % WIDTH);
 
-      //We store mirrored vars because we're checking for left-to-right
-      //diagonals on both the board and the mirrored version of the board.
+      //Set array that will store the pieces in the left-to-right diagonal on the board
+      //and the left-to-right diagonal on the mirrored board.
+      let diagonal = [],
+        mirrorDiagonal = [];
 
-      //Number of pieces in a row we've found.
-      let consecutive = 0;
-      let mirrorConsecutive = 0;
+      let currentIndex = index;
+      while (lineLength-- > 0) {
+        diagonal.push(this.board[currentIndex]);
+        mirrorDiagonal.push(this.mirroredBoard[currentIndex]);
+        currentIndex = currentIndex + WIDTH + 1;
+      }
 
-      //Store the last empty square we found, so that if we find that there
-      //is an empty square between three of our pieces, we mark it as a lane.
-      let lastEmpty = null;
-      let lastMirrorEmpty = null;
-
-      let updatedLastEmpty = false;
-      let updatedLastMirrorEmpty = false;
-
-      for (let i = 0; i < lineLength; i += 1) {
-        let square = this.board[index];
-        let mirrorSquare = this.mirroredBoard[index];
-
-        if (square == OPPOSING) {
-          consecutive = 0;
-          updatedLastEmpty = false;
-        }
-        if (square == type) consecutive += 1;
-
-        if (square == EMPTY) {
-          if (consecutive >= WINNING_LENGTH - 1) {
-            lanes[index] = 1;
-            updatedLastEmpty = false;
-            consecutive = 0;
+      for (let i = 0; i < diagonal.length; i += 1) {
+        if (diagonal[i] == EMPTY) {
+          let diagonalCopy = diagonal.slice(0);
+          diagonalCopy[i] = type;
+          if (checkForConsecutives(diagonalCopy)) {
+            lanes[index + (WIDTH + 1) * i] = 1;
           }
-
-          lastEmpty = index;
-          if (updatedLastEmpty) consecutive = 0;
-          if (consecutive > 0) updatedLastEmpty = true;
         }
-        if (consecutive >= WINNING_LENGTH) updatedLastEmpty = false;
-        if (consecutive >= WINNING_LENGTH - 1) {
-          if (square == type && lastEmpty != null) lanes[lastEmpty] = 1;
-
-          if (updatedLastEmpty) consecutive = 0;
-          updatedLastEmpty = false;
-        }
-
-        if (mirrorSquare == OPPOSING) {
-          mirrorConsecutive = 0;
-          updatedLastMirrorEmpty = false;
-        }
-        if (mirrorSquare == type) mirrorConsecutive += 1;
-
-        if (mirrorSquare == EMPTY) {
-          if (mirrorConsecutive >= WINNING_LENGTH - 1) {
-            lanes[Board.mirrorIndex(index)] = 1;
-            updatedLastMirrorEmpty = false;
-            mirrorConsecutive = 0;
+        if (mirrorDiagonal[i] == EMPTY) {
+          let mirrorDiagonalCopy = mirrorDiagonal.slice(0);
+          mirrorDiagonalCopy[i] = type;
+          if (checkForConsecutives(mirrorDiagonalCopy)) {
+            lanes[Board.mirrorIndex(index) + (WIDTH - 1) * i] = 1;
           }
-
-          lastMirrorEmpty = index;
-          if (updatedLastMirrorEmpty) mirrorConsecutive = 0;
-          if (mirrorConsecutive > 0) updatedLastMirrorEmpty = true;
         }
-        if (mirrorConsecutive >= WINNING_LENGTH) updatedLastMirrorEmpty = false;
-        if (mirrorConsecutive >= WINNING_LENGTH - 1) {
-          if (mirrorSquare == type && lastEmpty != null) {
-            lanes[Board.mirrorIndex(lastMirrorEmpty)] = 1;
-          }
-
-          if (updatedLastMirrorEmpty) mirrorConsecutive = 0;
-          updatedLastMirrorEmpty = false;
-        }
-
-        index = index + WIDTH + 1;
       }
     }
 
@@ -382,6 +337,7 @@ class Board {
       log.writeln(
         `Position was assigned a score of: ${score}. Current best score: ${bestScore}`
       );
+      console.log(this.lanes);
       if (score > bestScore) {
         bestScore = score;
         bestMove = index;
