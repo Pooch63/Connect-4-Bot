@@ -22,6 +22,28 @@ function clone1DArray(arr_) {
   return arr;
 }
 
+//How many properties are in an object?
+function countProperties(obj) {
+  let count = 0;
+
+  for (let prop in obj) {
+    if (obj.hasOwnProperty(prop)) count++;
+  }
+  return count;
+}
+
+//Please note: This table is one part of the evaluation function
+//I saw it on: https://softwareengineering.stackexchange.com/questions/263514/why-does-this-evaluation-function-work-in-a-connect-four-game-in-java
+//prettier-ignore
+const evalTable = [
+  3, 4, 5, 7, 5, 4, 3,
+  4, 6, 8, 10, 8, 6, 4,
+  5, 8, 11, 13, 11, 8, 5,
+  5, 8, 11, 13, 11, 8, 5,
+  4, 6, 8, 10, 8, 6, 4,
+  3, 4, 5, 7, 5, 4, 3,
+];
+
 class Board {
   //Given an index on the board, return the index of that spot reflected across
   //the vertical middle of the board. E.G., if passed the index of (2, 5) on a 6 x 7 board,
@@ -131,7 +153,9 @@ class Board {
 
         let row_ = this.board.slice(y, y + WIDTH);
         row_[x] = type;
-        if (checkForConsecutives(row_)) lanes[x + y] = 1;
+        if (checkForConsecutives(row_) && this.board[x + y] == EMPTY) {
+          lanes[x + y] = 1;
+        }
       }
     }
 
@@ -145,7 +169,11 @@ class Board {
         let square = this.board[index];
         if (square == type) consecutive += 1;
 
-        if (square == EMPTY && consecutive >= WINNING_LENGTH - 1) {
+        if (
+          square == EMPTY &&
+          consecutive >= WINNING_LENGTH - 1 &&
+          this.board[index] == EMPTY
+        ) {
           lanes[index] = 1;
         }
 
@@ -172,15 +200,20 @@ class Board {
         if (diagonal[i] == EMPTY) {
           let diagonalCopy = diagonal.slice(0);
           diagonalCopy[i] = type;
-          if (checkForConsecutives(diagonalCopy)) {
-            lanes[index + (WIDTH + 1) * i] = 1;
+          let ind = index + (WIDTH + 1) * i;
+          if (checkForConsecutives(diagonalCopy) && this.board[ind] == EMPTY) {
+            lanes[ind] = 1;
           }
         }
         if (mirrorDiagonal[i] == EMPTY) {
           let mirrorDiagonalCopy = mirrorDiagonal.slice(0);
           mirrorDiagonalCopy[i] = type;
-          if (checkForConsecutives(mirrorDiagonalCopy)) {
-            lanes[Board.mirrorIndex(index) + (WIDTH - 1) * i] = 1;
+          let ind = Board.mirrorIndex(index) + (WIDTH - 1) * i;
+          if (
+            checkForConsecutives(mirrorDiagonalCopy) &&
+            this.board[ind] == EMPTY
+          ) {
+            lanes[ind] = 1;
           }
         }
       }
@@ -253,9 +286,9 @@ class Board {
   }
 
   //Accepts the player whose turn it is to move (PLAYER or OPPONENT)
-  evalPos(type) {
-    if (this.playerWon) return Number.POSITIVE_INFINITY;
-    if (this.opponentWon) return Number.NEGATIVE_INFINITY;
+  evalPos(type, originalDepth) {
+    if (this.playerWon) return 100_000_000 - originalDepth;
+    if (this.opponentWon) return -100_000_000 + originalDepth;
 
     let indices = this.getPlayableIndices();
     let player = type == PLAYER;
@@ -264,20 +297,34 @@ class Board {
     //Check if we have an immediate win.
     let win = this.playableLane(indices, lanes);
     if (win != null) {
-      return player ? Number.POSITIVE_INFINITY : Number.NEGATIVE_INFINITY;
+      if (player) return 100_000_000 - originalDepth;
+      else return -100_000_000 + originalDepth;
     }
 
-    return 0;
+    let score = 0;
+    let lc = countProperties(this.lanes),
+      olc = countProperties(this.opponentLanes);
+
+    score = score + lc * 1.2;
+    score = score - olc * 1.2;
+
+    for (let i = 0; i < WIDTH * HEIGHT; i += 1) {
+      if (this.board[i] == PLAYER) score += evalTable[i];
+      else if (this.board[i] == OPPONENT) score -= evalTable[i];
+    }
+
+    return score;
   }
 
   //Player: Is it the player's turn, or the opponent's turn?
-  minimax(depth, player) {
+  minimax(depth, player, originalDepth) {
     //If a player won, we might have some moves, but it's already over
-    if (this.playerWon) return Number.POSITIVE_INFINITY;
-    if (this.opponentWon) return Number.NEGATIVE_INFINITY;
+    if (this.playerWon) return 100_000_000 - originalDepth;
+    if (this.opponentWon) return -100_000_000 + originalDepth;
 
-    if (depth <= 1) return this.evalPos();
-
+    if (depth <= 1) {
+      return this.evalPos(player ? PLAYER : OPPONENT, originalDepth);
+    }
     let indices = this.getPlayableIndices();
 
     //No moves, it's a draw!
@@ -293,7 +340,7 @@ class Board {
       for (let index of indices) {
         this.savePosToHistory();
         this.setSquare(index, squareType, true);
-        let score = this.minimax(depth - 1, !player);
+        let score = this.minimax(depth - 1, !player, originalDepth);
         if (score > bestScore) bestScore = score;
         this.goToLastPos();
       }
@@ -302,7 +349,7 @@ class Board {
       for (let index of indices) {
         this.savePosToHistory();
         this.setSquare(index, squareType, true);
-        let score = this.minimax(depth - 1, !player);
+        let score = this.minimax(depth - 1, !player, originalDepth);
         if (score < bestScore) bestScore = score;
         this.goToLastPos();
       }
@@ -311,7 +358,7 @@ class Board {
   }
 
   //Returns 0 - WIDTH, basically column where we want to play
-  bestMove(depth = 5) {
+  bestMove(depth = 6) {
     let indices = this.getPlayableIndices();
     console.log(indices, this.floors);
 
@@ -331,7 +378,7 @@ class Board {
       log.writeln(`Searching at a depth of: ${depth}`);
       this.savePosToHistory();
       this.setSquare(index, PLAYER, true);
-      let score = this.minimax(depth, false);
+      let score = this.minimax(depth - 1, false, depth);
       log.writeln(`Board after playing move: `);
       log.logBoard(b.board);
       log.writeln(
@@ -346,7 +393,11 @@ class Board {
     }
 
     log.tab = false;
-    log.writeln(`Best move at index ${bestMove}`);
+    log.writeln(
+      `Best move at index ${bestMove}. Pos: (${bestMove % WIDTH}, ${
+        (bestMove - (bestMove % WIDTH)) / WIDTH
+      })`
+    );
 
     return bestMove;
   }
@@ -354,8 +405,14 @@ class Board {
   //Debug purposes. Player moves and opponent arrays are integer arrays of columns to played.
   //Makes the player's column move, then opponent's, then player, etc. -1 means don't make a move
   //for that particular side that turn.  By default, subtracts one from the columns.
-  setBoard(playerMoves, opponentMoves, subtract = true) {
-    for (let i = 0; i < playerMoves.length; i += 1) {
+  //E.G., if you pass 7 as a column and don't set subtract to true, the column at index 7 doesn't exist,
+  //so behavior is undefined. If your column range IS 1-7 and NOT 0-6, set subtract to true.
+  setBoardByMoves(playerMoves, opponentMoves, subtract = true) {
+    for (
+      let i = 0;
+      i < Math.max(playerMoves.length, opponentMoves.length);
+      i += 1
+    ) {
       let p = playerMoves[i] - (subtract ? 1 : 0),
         o = opponentMoves[i] - (subtract ? 1 : 0);
       if (!isNaN(p) && p >= 0) {
@@ -369,6 +426,34 @@ class Board {
   //Debug purposes. Slide a piece in at a certain column, on top of that column's floor
   setSquareOnColumn(column, player) {
     this.setSquareFromPos(column, this.floors[column], player);
+  }
+  //Debug purposes. Given board array, update this board array,
+  //floors, game history, etc.
+  setBoardByArray(board) {
+    for (let i = 0; i < WIDTH * HEIGHT; i += 1) {
+      let p = board[i];
+      if (p != EMPTY) this.setSquareOnColumn(i % WIDTH, p);
+    }
+  }
+  //Debug purposes. Given board str, e.g. BBRRRBBEBRRRBEEERREEEEEBBEEEEEEEEEEEEEEEEE,
+  //set board such that the first character (B) is at index 0 of the board array and
+  //the last (E) is at index 41. B means PLAYER, R means OPPONENT, and E means EMPTY.
+  //String may be less than 42 characters. Any spots not provided are presumed to be empty.
+  setBoardByBoardStr(str) {
+    let board = [];
+    let i = WIDTH * HEIGHT;
+    while (i-- > 0) board.push(EMPTY);
+
+    str = str.toUpperCase();
+
+    let c = -1;
+    while (++c < str.length) {
+      let p = str[c];
+      if (p == "B") board[c] = PLAYER;
+      if (p == "R") board[c] = OPPONENT;
+    }
+
+    this.setBoardByArray(board);
   }
 }
 
@@ -388,15 +473,16 @@ debugSetStartingPos();
 
 const log = new debug.Log("./", {
   displayBoardPath:
-    "file:///C:/Users/kiyaa/Project/Github/Connect-4-Bot/display-board.html",
+    "file:///C:/Users/kiyaa/Project/Github/Connect-4-Bot/Web/board.html",
   newline: true,
 });
 log.clearLog();
-// debug.playBot(b, b.bestMove);
+log.write("new stuff!");
 
-b.setBoard(
-  [4, 5, 4, 4, 4, 3, 2, 2, 3, 1, 1, 1, 5],
-  [4, 3, 6, 4, 2, 1, 3, 2, 2, 3, 1, 5, 5],
-  true
-);
+//prettier-ignore
+b.setBoardByMoves(
+  [-1, 3, 4, 7, 5, 3, 3, 4, 5, 7, 5, 3, 4, 7, 2, 2, 1, 1, 1, 2],
+  [4, 5, 6, 5, 4, 3, 6, 7, 7, 4, 5, 3, 1, 7, 2, 2, 1, 1, 2],
+true);
 console.log(b.bestMove());
+// debug.playBot(Board, log);

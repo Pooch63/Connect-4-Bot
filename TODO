@@ -1,1 +1,4 @@
-Fix minimax function
+Make it so that the minimax function has a certain time,
+first searches at depth 1, then 2, then 3, etc.
+
+Add alpha beta pruning

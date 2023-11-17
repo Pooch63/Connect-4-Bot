@@ -28,24 +28,46 @@ export function testFunc(
   }
 }
 
-export function playBot(board) {
+export function playBot(Board, log) {
+  const getColumn = (question) => {
+    let col = NaN;
+    while (isNaN(col) || col < 0 || col > 6) {
+      let input = prompt(question);
+      if (input == null) return;
+      if (input == "board") console.log(board.board, log.logBoard(board.board));
+      col = parseInt(input);
+    }
+    return col;
+  };
+
+  let b = new Board();
+
+  const setBoard = () => {
+    b = new Board();
+    b.setBoardByMoves(playerMoves, opponentMoves);
+  };
+
+  let playerMoves = [],
+    opponentMoves = [];
+
   const firstLane = prompt("Index of first lane (null if nothing) ");
+  if (firstLane == undefined) return;
   if (!isNaN(parseInt(firstLane))) {
-    board.setSquareOnColumn(parseInt(firstLane), OPPONENT);
+    opponentMoves.push(firstLane);
+    setBoard();
+    // board.setSquareOnColumn(parseInt(firstLane), OPPONENT);
   }
 
   while (true) {
-    let bestMove = board.bestMove();
-    board.setSquareOnColumn(bestMove % 7, PLAYER);
+    let bestMove = b.bestMove();
+    playerMoves.push(bestMove);
+    setBoard();
     console.log(`Best move: ${bestMove}`);
 
-    let opponent;
-    while (isNaN(opponent)) {
-      let input = prompt("Opponent column:");
-      if (input == null) return;
-      opponent = isNaN(opponent);
-    }
-    board.setSquareOnColumn(opponent, OPPONENT);
+    let opponent = getColumn("Opponent column: ");
+    if (opponent == null) return;
+    opponentMoves.push(OPPONENT);
+    setBoard();
   }
 }
 
@@ -53,7 +75,7 @@ export class Log {
   //Dirname: folder where LOG.txt will live.
   //Options:
   //  - Display board path: full URL to file that will display board.
-  //    Include full URL, e.g. file:///C:/Users/PROFILE/Github/Connect-4-Bot/display-board.html
+  //    Include full URL, e.g. file:///C:/Users/PROFILE/Github/Connect-4-Bot/Web/board.html
   //  - Newline: Include a newline after every specific write statement
   //    Note that write will never append a newline and writeln will always append a newline
   //    regardless of what this is set to.
