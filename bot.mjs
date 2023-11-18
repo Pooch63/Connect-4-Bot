@@ -9,6 +9,8 @@ import {
   OPPONENT,
 } from "./globals.mjs";
 
+const { min, max } = Math;
+
 //Clones object. Assumes values are primitives
 function cloneObject(obj_) {
   let obj = {};
@@ -316,8 +318,15 @@ class Board {
     return score;
   }
 
+  //Depth: Current depth
   //Player: Is it the player's turn, or the opponent's turn?
-  minimax(depth, player, originalDepth) {
+  //Original depth: Obviously the original depth
+  //Alpha and beta: look up minimax algorithm
+  //Start time: time in milliseconds that the search started
+  //Max time: max time in milliseconds that the search may last for
+  minimax(depth, player, originalDepth, alpha, beta, startTime, maxTime) {
+    if (Date.now() - startTime >= maxTime) return;
+
     //If a player won, we might have some moves, but it's already over
     if (this.playerWon) return 100_000_000 - originalDepth;
     if (this.opponentWon) return -100_000_000 + originalDepth;
@@ -340,27 +349,60 @@ class Board {
       for (let index of indices) {
         this.savePosToHistory();
         this.setSquare(index, squareType, true);
-        let score = this.minimax(depth - 1, !player, originalDepth);
-        if (score > bestScore) bestScore = score;
+
+        if (Date.now() - startTime >= maxTime) {
+          this.goToLastPos();
+          return bestScore;
+        }
+
+        let score = this.minimax(
+          depth - 1,
+          !player,
+          originalDepth,
+          alpha,
+          beta
+        );
         this.goToLastPos();
+
+        if (Date.now() - startTime >= maxTime) return bestScore;
+
+        if (score > bestScore) bestScore = score;
+        alpha = max(score, alpha);
+        if (beta <= alpha) break;
       }
     }
     if (!player) {
       for (let index of indices) {
         this.savePosToHistory();
         this.setSquare(index, squareType, true);
-        let score = this.minimax(depth - 1, !player, originalDepth);
-        if (score < bestScore) bestScore = score;
+
+        if (Date.now() - startTime >= maxTime) {
+          this.goToLastPos();
+          return bestScore;
+        }
+
+        let score = this.minimax(
+          depth - 1,
+          !player,
+          originalDepth,
+          alpha,
+          beta
+        );
         this.goToLastPos();
+
+        if (Date.now() - startTime >= maxTime) return bestScore;
+
+        if (score < bestScore) bestScore = score;
+        beta = min(score, beta);
+        if (beta <= alpha) break;
       }
     }
     return bestScore;
   }
 
   //Returns 0 - WIDTH, basically column where we want to play
-  bestMove(depth = 6) {
+  bestMoveDebug(depth = 6) {
     let indices = this.getPlayableIndices();
-    console.log(indices, this.floors);
 
     log.writeln(`Current position: `);
     log.logBoard(this.board);
@@ -378,13 +420,18 @@ class Board {
       log.writeln(`Searching at a depth of: ${depth}`);
       this.savePosToHistory();
       this.setSquare(index, PLAYER, true);
-      let score = this.minimax(depth - 1, false, depth);
+      let score = this.minimax(
+        depth - 1,
+        false,
+        depth,
+        Number.NEGATIVE_INFINITY,
+        Number.POSITIVE_INFINITY
+      );
       log.writeln(`Board after playing move: `);
       log.logBoard(b.board);
       log.writeln(
         `Position was assigned a score of: ${score}. Current best score: ${bestScore}`
       );
-      console.log(this.lanes);
       if (score > bestScore) {
         bestScore = score;
         bestMove = index;
@@ -399,6 +446,45 @@ class Board {
       })`
     );
 
+    return bestMove;
+  }
+  bestMove(time = 1_000, maxDepth = 20) {
+    let indices = this.getPlayableIndices();
+
+    let bestMove = indices[0];
+    let bestScore = Number.NEGATIVE_INFINITY;
+
+    let start = Date.now();
+
+    for (let x = 1; x <= maxDepth; x += 1) {
+      console.log(x);
+      for (let index of indices) {
+        this.savePosToHistory();
+        this.setSquare(index, PLAYER, true);
+
+        if (Date.now() - start >= time) {
+          this.goToLastPos();
+          return bestMove;
+        }
+
+        let score = this.minimax(
+          x,
+          false,
+          x,
+          Number.NEGATIVE_INFINITY,
+          Number.POSITIVE_INFINITY,
+          start,
+          time
+        );
+        this.goToLastPos();
+
+        if (Date.now() - start >= time) return bestMove;
+        if (score > bestScore) {
+          bestScore = score;
+          bestMove = index;
+        }
+      }
+    }
     return bestMove;
   }
 
@@ -480,9 +566,17 @@ log.clearLog();
 log.write("new stuff!");
 
 //prettier-ignore
-b.setBoardByMoves(
-  [-1, 3, 4, 7, 5, 3, 3, 4, 5, 7, 5, 3, 4, 7, 2, 2, 1, 1, 1, 2],
-  [4, 5, 6, 5, 4, 3, 6, 7, 7, 4, 5, 3, 1, 7, 2, 2, 1, 1, 2],
-true);
-console.log(b.bestMove());
+// b.setBoardByMoves(
+//   [-1, 3, 4, 7, 5, 3, 3, 4, 5, 7,],
+//   [4, 5, 6, 5, 4, 3, 6, 7, 7, 4,],
+// true);
+console.time();
+console.log(b.bestMove(10_000));
+console.timeEnd();
 // debug.playBot(Board, log);
+
+console.time();
+for (let i = 0; i < 1_000; i += 1) {
+  let z = b.evalPos(PLAYER);
+}
+console.timeEnd();

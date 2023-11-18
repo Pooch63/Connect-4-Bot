@@ -2,3 +2,5 @@ Make it so that the minimax function has a certain time,
 first searches at depth 1, then 2, then 3, etc.
 
 Add alpha beta pruning
+W/o alpha beta pruning, at a depth of 7, minimax was called 80,565 times
+W/ alpha beta pruning, at a depth of 7, minimax was called 28,618 times.

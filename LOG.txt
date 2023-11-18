@@ -1,10 +1,1 @@
-new stuff!Current position: 
-file:///C:/Users/kiyaa/Project/Github/Connect-4-Bot/Web/board.html?board=RBBRRRBBRBBRRRRBRRBERBRBBBEBRRBRBEBBBRBRER (Opponent displayed in red)
-Testing move
-	Index: 19
-	Pos: (5, 2)
-	Searching at a depth of: 6
-	Board after playing move: 
-	file:///C:/Users/kiyaa/Project/Github/Connect-4-Bot/Web/board.html?board=RBBRRRBBRBBRRRRBRRBBRBRBBBEBRRBRBEBBBRBRER (Opponent displayed in red)
-	Position was assigned a score of: 99999994. Current best score: -Infinity
-Best move at index 19. Pos: (5, 2)
+new stuff!
