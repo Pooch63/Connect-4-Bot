@@ -4,3 +4,7 @@ first searches at depth 1, then 2, then 3, etc.
 Add alpha beta pruning
 W/o alpha beta pruning, at a depth of 7, minimax was called 80,565 times
 W/ alpha beta pruning, at a depth of 7, minimax was called 28,618 times.
+
+Add a cache that stores positions already evaluated
+Make sure to also store the depth at which they were calced so that evaluations
+at that depth or lower can just steal that data

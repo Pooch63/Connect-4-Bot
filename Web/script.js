@@ -1,6 +1,5 @@
-const BLUE = 0;
-const RED = 1;
-const EMPTY = 2;
+while (packages == undefined);
+while (packages.board == null);
 
 const repeat = (n, c) => {
   let s = "";
@@ -8,15 +7,19 @@ const repeat = (n, c) => {
   return s;
 };
 const url = new URL(window.location.href);
-let pieces = url.searchParams.get("board").toLowerCase() ?? repeat(42, "e");
+let pieces = (url.searchParams.get("board") ?? repeat(42, "e")).toLowerCase();
 
 const squares = [];
 
 const board = document.getElementsByClassName("board")[0];
-const { min, max } = Math;
+
+const HUMAN = 0;
+const BOT = 1;
+let bluePlayer = HUMAN;
+let redPlayer = BOT;
 
 //Is it red or blue's turn to move?
-let player = RED;
+let player = BLUE;
 
 //When a piece is falling down into its spot, how many milliseconds does it take
 //to fall from one square to another
@@ -28,8 +31,7 @@ let lastSquareMove = 0;
 //At what column is the piece we're animating currently at?
 let currentAnimationColumn = null;
 
-let arr = [];
-for (let i = 0; i < 6 * 7; i += 1) arr.push(EMPTY);
+let game = new Board();
 
 function suggestPieceOverColumn(col) {
   if (animating) return false;
@@ -66,14 +68,14 @@ function slideInPiece(col) {
   if (animating) return false;
 
   //Is the column already full?
-  if (arr[7 * 5 + col] != EMPTY) return;
+  if (game.board[7 * 5 + col] != EMPTY) return;
   lastSquareMove = Date.now();
 
   currentAnimationColumn = 5;
   let floor = 7;
 
   for (let ind = col; ind < 6 * 7; ind += 7) {
-    if (arr[ind] == EMPTY) {
+    if (game.board[ind] == EMPTY) {
       floor = (ind - (ind % 7)) / 7;
       break;
     }
@@ -92,8 +94,16 @@ function animateSlideIn(col, floor) {
   if (currentAnimationColumn < floor) {
     animating = false;
     currentAnimationColumn = null;
-    arr[col + floor * 7] = player;
+    game.setSquareOnColumn(col, player);
     player = player == RED ? BLUE : RED;
+
+    if (
+      (player == RED && redPlayer == BOT) ||
+      (player == BLUE && bluePlayer == BOT)
+    ) {
+      botPlay(player);
+    }
+
     return;
   }
 
@@ -107,6 +117,24 @@ function animateSlideIn(col, floor) {
   window.requestAnimationFrame(() => animateSlideIn(col, floor));
 }
 
+function botPlay(player) {
+  //Is the board COMPLETELY full?
+  for (let i = 0; i < game.floors.length; i += 1) {
+    if (game.floors[i] < 6) break;
+    if (i == game.floors.length - 1) return;
+  }
+
+  let best = game.bestMove(1_000, 20, player);
+  console.log(best);
+  slideInPiece(best % 7);
+}
+
+// game.setBoardByMoves([-1, 3], [3], false);
+
+console.log("Bestest #2", game.bestMove(1_000, 20, RED));
+
+game = new Board();
+
 //Create board
 for (let i = 0; i < 6 * 7; i += 1) {
   let square = document.createElement("div");
@@ -118,11 +146,11 @@ for (let i = 0; i < 6 * 7; i += 1) {
 
   if (piece == "b") {
     square.classList.add("blue");
-    arr[ind] = BLUE;
+    game.setSquare(ind, BLUE);
   }
   if (piece == "r") {
     square.classList.add("red");
-    arr[ind] = RED;
+    game.setSquare(ind, RED);
   }
 
   square.onmousemove = () => suggestPieceOverColumn(i % 7);

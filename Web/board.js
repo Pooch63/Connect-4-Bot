@@ -1,6 +1,10 @@
-import * as debug from "./debug.mjs";
+const WIDTH = 7;
+const HEIGHT = 6;
+const WINNING_LENGTH = 4;
 
-import { WIDTH, HEIGHT, WINNING_LENGTH, EMPTY, BLUE, RED } from "./globals.mjs";
+const EMPTY = 0;
+const BLUE = 1;
+const RED = 2;
 
 const { min, max } = Math;
 
@@ -322,10 +326,8 @@ class Board {
     if (Date.now() - startTime >= maxTime) return;
 
     //If a player won, we might have some moves, but it's already over
-    //We add the different between the original depth and the current depth
-    //so that we prioritize wins that are quicker.
-    if (this.blueWon) return 100_000_000 - (originalDepth - depth);
-    if (this.redWon) return -100_000_000 + (originalDepth - depth);
+    if (this.blueWon) return 100_000_000 - originalDepth;
+    if (this.redWon) return -100_000_000 + originalDepth;
 
     if (depth <= 1) {
       return this.evalPos(player ? BLUE : RED, originalDepth);
@@ -397,44 +399,6 @@ class Board {
   }
 
   //Returns 0 - WIDTH, basically column where we want to play
-  bestMoveDebug(depth = 6) {
-    let indices = this.getPlayableIndices();
-    console.log(indices, this.floors);
-    log.writeln(`Current position: `);
-    log.logBoard(this.board);
-    let bestMove = indices[0];
-    let bestScore = Number.NEGATIVE_INFINITY;
-    for (let index of indices) {
-      log.tab = false;
-      log.writeln(`Testing move`);
-      log.tab = true;
-      log.writeln(`Index: ${index}`);
-      log.writeln(
-        `Pos: (${index % WIDTH}, ${(index - (index % WIDTH)) / WIDTH})`
-      );
-      log.writeln(`Searching at a depth of: ${depth}`);
-      this.savePosToHistory();
-      this.setSquare(index, BLUE, true);
-      let score = this.minimax(
-        depth - 1,
-        false,
-        depth,
-        Number.NEGATIVE_INFINITY,
-        Number.POSITIVE_INFINITY
-      );
-      log.writeln(`Board after playing move: `);
-      log.logBoard(b.board);
-      log.writeln(
-        `Position was assigned a score of: ${score}. Current best score: ${bestScore}`
-      );
-      if (score > bestScore) {
-        bestScore = score;
-        bestMove = index;
-      }
-      this.goToLastPos();
-    }
-    return bestMove;
-  }
   bestMove(time = 1_000, maxDepth = 20, player = BLUE) {
     let blue = player == BLUE;
     let red = player == RED;
@@ -476,7 +440,7 @@ class Board {
       let newIndices = [];
       let scores = [];
 
-      console.log("X's and o's", x, bestMove);
+      console.log(x, bestMove);
       for (let index of indices) {
         this.savePosToHistory();
         this.setSquare(index, player, true);
@@ -495,6 +459,7 @@ class Board {
           start,
           time
         );
+        console.log("\t", index, score, red, bestScore);
         this.goToLastPos();
 
         if (Date.now() - start >= time) return bestMove;
@@ -516,6 +481,7 @@ class Board {
         bestScore = scores[0];
         bestMove = newIndices[0];
       }
+      console.log(newIndices, scores);
       indices = newIndices;
     }
     return bestMove;
@@ -572,39 +538,7 @@ class Board {
   }
 }
 
-const timeFunc = (c, f) => {
-  console.time();
-  for (let i = 0; i < c; i += 1) f();
-  console.timeEnd();
-};
-
 let b = new Board();
 
-function debugSetStartingPos() {
-  console.log("CALCULATING");
-  console.log(b.calcLanes(RED));
-}
-debugSetStartingPos();
-
-const log = new debug.Log("./", {
-  displayBoardPath:
-    "file:///C:/Users/kiyaa/Project/Github/Connect-4-Bot/Web/board.html",
-  newline: true,
-});
-log.clearLog();
-log.write("new stuff!");
-
-//prettier-ignore
-// b.setBoardByMoves(
-//   [2, 2, -1],
-//   [3, 3, 3],false)
-
-b.setBoardByArray(
-  [
-    1, 2, 1, 1, 1, 2, 1, 0, 2, 1, 2, 1, 0, 0, 0, 0, 2, 1, 2, 0, 0, 0, 0, 1, 2,
-    2, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0,
-  ],
-);
-console.log(b.board);
-console.log("Bestest #1", b.bestMove(100000000000, 40, RED));
-// debug.playBot(Board, log);
+while (packages == undefined);
+packages.board = true;

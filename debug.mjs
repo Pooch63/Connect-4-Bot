@@ -1,6 +1,6 @@
 import promptSync from "prompt-sync";
 import * as fs from "fs";
-import { OPPONENT, PLAYER } from "./globals.mjs";
+import { RED, BLUE } from "./globals.mjs";
 const prompt = promptSync();
 
 //Func: function to be tested
@@ -66,7 +66,7 @@ export function playBot(Board, log) {
 
     let opponent = getColumn("Opponent column: ");
     if (opponent == null) return;
-    opponentMoves.push(OPPONENT);
+    opponentMoves.push(RED);
     setBoard();
   }
 }
@@ -94,8 +94,8 @@ export class Log {
   logBoard(board, displayBoardPath = this.options.displayBoardPath) {
     let boardStr = "";
     for (let el of board) {
-      if (el == PLAYER) boardStr += "B";
-      else if (el == OPPONENT) boardStr += "R";
+      if (el == BLUE) boardStr += "B";
+      else if (el == RED) boardStr += "R";
       else boardStr += "E";
     }
 
