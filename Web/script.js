@@ -104,6 +104,17 @@ function animateSlideIn(col, floor) {
       botPlay(player);
     }
 
+    if (game.redWon && !game.blueWon) {
+      document.getElementsByClassName(
+        "win-status-DEBUG-CHANGE-LATER"
+      )[0].innerHTML = "Red Wins!";
+    }
+    if (game.blueWon && !game.redWon) {
+      document.getElementsByClassName(
+        "win-status-DEBUG-CHANGE-LATER"
+      )[0].innerHTML = "Blue Wins!";
+    }
+
     return;
   }
 
@@ -124,14 +135,10 @@ function botPlay(player) {
     if (i == game.floors.length - 1) return;
   }
 
-  let best = game.bestMove(1_000, 20, player);
+  let best = game.bestMove(1_00, 20, player);
   console.log(best);
   slideInPiece(best % 7);
 }
-
-// game.setBoardByMoves([-1, 3], [3], false);
-
-console.log("Bestest #2", game.bestMove(1_000, 20, RED));
 
 game = new Board();
 

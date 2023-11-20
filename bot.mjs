@@ -39,6 +39,8 @@ const evalTable = [
   3, 4, 5, 7, 5, 4, 3,
 ];
 
+const MAX_CACHE_SIZE = 10_000;
+
 class Board {
   //Given an index on the board, return the index of that spot reflected across
   //the vertical middle of the board. E.G., if passed the index of (2, 5) on a 6 x 7 board,
@@ -95,6 +97,15 @@ class Board {
 
     this.blueWon = false;
     this.redWon = false;
+
+    /*Cache of different positions and their evaluations.
+    Example entry:
+    "1,2,1,1,1,2,1,0,2,1,2,1,0,0,0,0,2,1,2,0,0,0,0,1,2,2,0,0,0,0,0,1,0,0,0,0,0,0,2,0,0,0-B": {
+      //This is the depth at which we evaluated the position
+      depth: 5,
+      eval: -99999995
+    }*/
+    this.cache = {};
   }
   savePosToHistory() {
     this.history.push({
@@ -312,36 +323,47 @@ class Board {
   }
 
   //Depth: Current depth
-  //Player: Is it blue or red's turn?
-  //IMPORTANT: Blue is maximizing player, red is minimizing player
+  //Player: Is it a maximizing player's turn?
+  //IMPORTANT: Blue should be maximizing player, red should be minimizing player
   //Original depth: Obviously the original depth
   //Alpha and beta: look up minimax algorithm
   //Start time: time in milliseconds that the search started
   //Max time: max time in milliseconds that the search may last for
-  minimax(depth, player, originalDepth, alpha, beta, startTime, maxTime) {
+  minimax(
+    depth,
+    maximizingPlayer,
+    originalDepth,
+    alpha,
+    beta,
+    startTime,
+    maxTime
+  ) {
     if (Date.now() - startTime >= maxTime) return;
+
+    //Depth we're currently at.
+    let currentDepth = originalDepth - depth + 1;
 
     //If a player won, we might have some moves, but it's already over
     //We add the different between the original depth and the current depth
     //so that we prioritize wins that are quicker.
-    if (this.blueWon) return 100_000_000 - (originalDepth - depth);
-    if (this.redWon) return -100_000_000 + (originalDepth - depth);
+    if (this.blueWon) return 100_000_000 - currentDepth;
+    if (this.redWon) return -100_000_000 + currentDepth;
 
     if (depth <= 1) {
-      return this.evalPos(player ? BLUE : RED, originalDepth);
+      return this.evalPos(maximizingPlayer ? BLUE : RED, originalDepth);
     }
     let indices = this.getPlayableIndices();
 
     //No moves, it's a draw!
     if (indices.length == 0) return 0;
 
-    let bestScore = player
+    let bestScore = maximizingPlayer
       ? Number.NEGATIVE_INFINITY
       : Number.POSITIVE_INFINITY;
 
-    let squareType = player ? BLUE : RED;
+    let squareType = maximizingPlayer ? BLUE : RED;
 
-    if (player) {
+    if (maximizingPlayer) {
       for (let index of indices) {
         this.savePosToHistory();
         this.setSquare(index, squareType, true);
@@ -351,13 +373,31 @@ class Board {
           return bestScore;
         }
 
-        let score = this.minimax(
+        let score;
+
+        // let cacheInd =
+        //   this.board.toString() + "-" + (maximizingPlayer ? "B" : "R");
+        // let data = this.cache[cacheInd];
+        // if (data && depth - 1 <= data.depth) score = data.eval;
+        // else {
+        score = this.minimax(
           depth - 1,
-          !player,
+          !maximizingPlayer,
           originalDepth,
           alpha,
-          beta
+          beta,
+          startTime,
+          maxTime
         );
+        //   this.cache[cacheInd] = { depth: depth - 1, eval: score };
+
+        //   //Free up room in the cache if it's already overflowing by removing the first position
+        //   //that was added.
+        //   if (countProperties(this.cache) > MAX_CACHE_SIZE) {
+        //     delete this.cache[Reflect.ownKeys(this.cache)[0]];
+        //   }
+        // }
+
         this.goToLastPos();
 
         if (Date.now() - startTime >= maxTime) return bestScore;
@@ -367,7 +407,7 @@ class Board {
         if (beta <= alpha) break;
       }
     }
-    if (!player) {
+    if (!maximizingPlayer) {
       for (let index of indices) {
         this.savePosToHistory();
         this.setSquare(index, squareType, true);
@@ -377,13 +417,31 @@ class Board {
           return bestScore;
         }
 
-        let score = this.minimax(
+        let score;
+
+        // let cacheInd =
+        //   this.board.toString() + "-" + (maximizingPlayer ? "B" : "R");
+        // let data = this.cache[cacheInd];
+        // if (data && depth - 1 <= data.depth) score = data.eval;
+        // else {
+        score = this.minimax(
           depth - 1,
-          !player,
+          !maximizingPlayer,
           originalDepth,
           alpha,
-          beta
+          beta,
+          startTime,
+          maxTime
         );
+        // this.cache[cacheInd] = { depth: depth - 1, eval: score };
+
+        // Free up room in the cache if it's already overflowing by removing the first position
+        // that was added.
+        //   if (countProperties(this.cache) > MAX_CACHE_SIZE) {
+        //     delete this.cache[Reflect.ownKeys(this.cache)[0]];
+        //   }
+        // }
+
         this.goToLastPos();
 
         if (Date.now() - startTime >= maxTime) return bestScore;
@@ -436,16 +494,14 @@ class Board {
     return bestMove;
   }
   bestMove(time = 1_000, maxDepth = 20, player = BLUE) {
+    let start = Date.now();
+
     let blue = player == BLUE;
     let red = player == RED;
 
     let indices = this.getPlayableIndices();
 
     let bestMove = indices[0];
-    let bestScore =
-      player == BLUE ? Number.NEGATIVE_INFINITY : Number.POSITIVE_INFINITY;
-
-    let start = Date.now();
 
     for (let x = 1; x <= maxDepth; x += 1) {
       /*
@@ -500,21 +556,28 @@ class Board {
         if (Date.now() - start >= time) return bestMove;
 
         //Format moves so that next iteration, we look at the most promising moves first
-        if (newIndices.length == 0) {
-          newIndices.push(index);
-          scores.push(score);
-        } else {
-          let ind = 0;
-          for (let i = 0; i < scores.length; i += 1) {
-            if (blue && scores[i] > score) ind += 1;
-            if (red && scores[i] < score) ind += 1;
+
+        //If we've found a losing move, we don't want to explore it at a lower depth,
+        //so we only add moves if they have some kind of winning potential.
+        if (
+          (red && score != Number.POSITIVE_INFINITY) ||
+          (blue && score != Number.NEGATIVE_INFINITY)
+        ) {
+          if (newIndices.length == 0) {
+            newIndices.push(index);
+            scores.push(score);
+          } else {
+            let ind = 0;
+            for (let i = 0; i < scores.length; i += 1) {
+              if (blue && scores[i] > score) ind += 1;
+              if (red && scores[i] < score) ind += 1;
+            }
+            scores.splice(ind, 0, score);
+            newIndices.splice(ind, 0, index);
           }
-          scores.splice(ind, 0, score);
-          newIndices.splice(ind, 0, index);
         }
 
-        bestScore = scores[0];
-        bestMove = newIndices[0];
+        bestMove = newIndices[0] || indices[0];
       }
       indices = newIndices;
     }
@@ -572,6 +635,8 @@ class Board {
   }
 }
 
+let cacheHits = 0;
+
 const timeFunc = (c, f) => {
   console.time();
   for (let i = 0; i < c; i += 1) f();
@@ -594,17 +659,8 @@ const log = new debug.Log("./", {
 log.clearLog();
 log.write("new stuff!");
 
-//prettier-ignore
-// b.setBoardByMoves(
-//   [2, 2, -1],
-//   [3, 3, 3],false)
-
-b.setBoardByArray(
-  [
-    1, 2, 1, 1, 1, 2, 1, 0, 2, 1, 2, 1, 0, 0, 0, 0, 2, 1, 2, 0, 0, 0, 0, 1, 2,
-    2, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0,
-  ],
-);
 console.log(b.board);
-console.log("Bestest #1", b.bestMove(100000000000, 40, RED));
+// console.log(b.bestMoveDebug(5));
+console.log("Bestest #1", b.bestMove(1000, 20, RED));
+// console.log(countProperties(b.cache));
 // debug.playBot(Board, log);

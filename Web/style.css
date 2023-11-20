@@ -10,6 +10,8 @@ body {
   display: flex;
   justify-content: center;
   align-items: center;
+
+  flex-direction: column;
 }
 .board {
   width: calc(7 * 50vh / 6);
