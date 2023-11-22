@@ -13,12 +13,21 @@ body {
 
   flex-direction: column;
 }
+
+:root {
+  --board-width: 50vh;
+  --slider-height: 25px;
+}
+
 .board {
-  width: calc(7 * 50vh / 6);
-  height: 50vh;
+  width: calc(7 * var(--board-width) / 6);
+  height: var(--board-width);
   display: grid;
   grid-template-rows: repeat(6, 1fr);
   grid-template-columns: repeat(7, 1fr);
+
+  position: relative;
+  z-index: 1;
 }
 .square {
   background-color: yellow;
@@ -59,9 +68,131 @@ body {
   background-color: red;
 }
 
+.win-status {
+  display: flex;
+  position: absolute;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  top: 40%;
+  left: 25%;
+  background-color: rgb(255, 255, 255);
+  z-index: 2;
+
+  justify-content: center;
+  align-items: center;
+
+  font-size: 2.25rem;
+  opacity: 0;
+}
+@keyframes win {
+  from {
+    opacity: 0.2;
+    top: 75%;
+    transform: rotate(0);
+  }
+  to {
+    opacity: 1;
+    top: 40%;
+    transform: rotate(360deg);
+  }
+}
+.win-status-visible {
+  width: 50%;
+  height: 20%;
+  display: flex;
+  /* opacity: 0.95; */
+
+  /* transition: opacity 1s; */
+  animation: win 0.75s;
+  animation-fill-mode: forwards;
+}
+.win-status-blue {
+  color: blue;
+}
+.win-status-red {
+  color: red;
+}
+
+#bot-think-time-p {
+  text-align: center;
+}
+#bot-think-time-p br {
+  padding-bottom: 5px;
+}
+
+/*
+  Credit for the styles of the BEAUTIFUL bot think time slider:
+  https://stackoverflow.com/questions/72837338/is-it-possible-to-style-input-type-range-with-just-a-left-and-right-color-and-no
+*/
+#time-slider {
+  overflow: hidden;
+}
+@media screen and (-webkit-min-device-pixel-ratio: 0) {
+  #time-slider {
+    width: var(--board-width);
+    -webkit-appearance: none;
+    appearance: none;
+    background-color: #353535;
+  }
+  #time-slider::-webkit-slider-runnable-track {
+    height: var(--slider-height);
+    -webkit-appearance: none;
+    color: #13bba4;
+    margin-top: -1px;
+  }
+  #time-slider::-webkit-slider-thumb {
+    width: 0;
+    -webkit-appearance: none;
+    height: var(--slider-height);
+    box-shadow: calc(-1 * var(--board-width)) 0 0 var(--board-width) #43e5f7;
+  }
+}
+/* Firefox */
+#time-slider::-moz-range-progress {
+  background-color: #43e5f7;
+}
+#time-slider::-moz-range-thumb {
+  height: var(--slider-height);
+  width: 0;
+  border: none;
+  box-shadow: calc(-1 * var(--board-width)) 0 0 var(--board-width) #43e5f7;
+  box-sizing: border-box;
+}
+
+/* IE */
+#time-slider::-ms-fill-lower {
+  background-color: #43e5f7;
+}
+#time-slider::-ms-fill-upper {
+  background-color: #13bba4;
+}
+
+#bot-think-time-val {
+  text-align: center;
+}
+
 @media screen and (orientation: portrait) {
-  .board {
-    width: calc(7 * 50vw / 6);
-    height: 50vw;
+  .board,
+  #time-slider {
+    --board-width: 75vw;
+  }
+}
+
+@media screen and (orientation: portrait) and (min-width: 800px) {
+  .board,
+  #time-slider {
+    --board-width: 60vw;
+  }
+}
+
+@media (max-width: 700px) {
+  .win-status {
+    font-size: 1.75rem;
+  }
+}
+@media (max-width: 530px) {
+  .win-status {
+    font-size: 1rem;
   }
 }

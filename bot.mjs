@@ -373,14 +373,7 @@ class Board {
           return bestScore;
         }
 
-        let score;
-
-        // let cacheInd =
-        //   this.board.toString() + "-" + (maximizingPlayer ? "B" : "R");
-        // let data = this.cache[cacheInd];
-        // if (data && depth - 1 <= data.depth) score = data.eval;
-        // else {
-        score = this.minimax(
+        let score = this.minimax(
           depth - 1,
           !maximizingPlayer,
           originalDepth,
@@ -389,14 +382,6 @@ class Board {
           startTime,
           maxTime
         );
-        //   this.cache[cacheInd] = { depth: depth - 1, eval: score };
-
-        //   //Free up room in the cache if it's already overflowing by removing the first position
-        //   //that was added.
-        //   if (countProperties(this.cache) > MAX_CACHE_SIZE) {
-        //     delete this.cache[Reflect.ownKeys(this.cache)[0]];
-        //   }
-        // }
 
         this.goToLastPos();
 
@@ -417,14 +402,7 @@ class Board {
           return bestScore;
         }
 
-        let score;
-
-        // let cacheInd =
-        //   this.board.toString() + "-" + (maximizingPlayer ? "B" : "R");
-        // let data = this.cache[cacheInd];
-        // if (data && depth - 1 <= data.depth) score = data.eval;
-        // else {
-        score = this.minimax(
+        let score = this.minimax(
           depth - 1,
           !maximizingPlayer,
           originalDepth,
@@ -433,14 +411,6 @@ class Board {
           startTime,
           maxTime
         );
-        // this.cache[cacheInd] = { depth: depth - 1, eval: score };
-
-        // Free up room in the cache if it's already overflowing by removing the first position
-        // that was added.
-        //   if (countProperties(this.cache) > MAX_CACHE_SIZE) {
-        //     delete this.cache[Reflect.ownKeys(this.cache)[0]];
-        //   }
-        // }
 
         this.goToLastPos();
 
@@ -577,6 +547,9 @@ class Board {
           }
         }
 
+        //If a move wasn't added, that means it was a losing move. If there are
+        //no moves added, that means EVERY MOVE we've checked so far has been losing,
+        //so just return the first column.
         bestMove = newIndices[0] || indices[0];
       }
       indices = newIndices;
@@ -649,7 +622,7 @@ function debugSetStartingPos() {
   console.log("CALCULATING");
   console.log(b.calcLanes(RED));
 }
-debugSetStartingPos();
+// debugSetStartingPos();
 
 const log = new debug.Log("./", {
   displayBoardPath:
@@ -658,9 +631,3 @@ const log = new debug.Log("./", {
 });
 log.clearLog();
 log.write("new stuff!");
-
-console.log(b.board);
-// console.log(b.bestMoveDebug(5));
-console.log("Bestest #1", b.bestMove(1000, 20, RED));
-// console.log(countProperties(b.cache));
-// debug.playBot(Board, log);

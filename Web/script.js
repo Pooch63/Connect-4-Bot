@@ -9,9 +9,35 @@ const repeat = (n, c) => {
 const url = new URL(window.location.href);
 let pieces = (url.searchParams.get("board") ?? repeat(42, "e")).toLowerCase();
 
-const squares = [];
-
+const squares = document.getElementsByClassName("square");
 const board = document.getElementsByClassName("board")[0];
+
+const winStatus = document.getElementsByClassName("win-status")[0];
+
+//In milliseconds
+let BOT_THINK_TIME = 30;
+
+const botThinkTimeInput = document.getElementById("bot-think-time-input");
+const botThinkTimeUnit = document.getElementById("bot-think-time-unit");
+const timeSlider = document.getElementById("time-slider");
+
+timeSlider.oninput = () => {
+  let time = parseInt(timeSlider.value);
+  botThinkTimeInput.value = time;
+
+  if (time == 1) botThinkTimeUnit.innerHTML = "millisecond";
+  else botThinkTimeUnit.innerHTML = "milliseconds";
+
+  BOT_THINK_TIME = parseInt(timeSlider.value);
+};
+botThinkTimeInput.oninput = () => {
+  let time = parseFloat(botThinkTimeInput.value);
+  BOT_THINK_TIME = time;
+  timeSlider.value = time;
+
+  if (time == 1) botThinkTimeUnit.innerHTML = "millisecond";
+  else botThinkTimeUnit.innerHTML = "milliseconds";
+};
 
 const HUMAN = 0;
 const BOT = 1;
@@ -34,6 +60,7 @@ let currentAnimationColumn = null;
 let game = new Board();
 
 function suggestPieceOverColumn(col) {
+  if (game.blueWon || game.redWon) return false;
   if (animating) return false;
   let square = squares[col];
   square.classList.add("suggested");
@@ -64,6 +91,8 @@ const blue = (x, y) => {
 
 //Ad a piece to a column
 function slideInPiece(col) {
+  if (game.blueWon || game.redWon) return false;
+
   //Are we already animating something?
   if (animating) return false;
 
@@ -86,6 +115,8 @@ function slideInPiece(col) {
   animateSlideIn(col, floor);
 }
 function animateSlideIn(col, floor) {
+  if (game.blueWon || game.redWon) return false;
+
   //We're not ready to continue the animation!!
   if (Date.now() - lastSquareMove < squareFallTime) {
     return window.requestAnimationFrame(() => animateSlideIn(col, floor));
@@ -104,16 +135,7 @@ function animateSlideIn(col, floor) {
       botPlay(player);
     }
 
-    if (game.redWon && !game.blueWon) {
-      document.getElementsByClassName(
-        "win-status-DEBUG-CHANGE-LATER"
-      )[0].innerHTML = "Red Wins!";
-    }
-    if (game.blueWon && !game.redWon) {
-      document.getElementsByClassName(
-        "win-status-DEBUG-CHANGE-LATER"
-      )[0].innerHTML = "Blue Wins!";
-    }
+    handleWin();
 
     return;
   }
@@ -135,18 +157,27 @@ function botPlay(player) {
     if (i == game.floors.length - 1) return;
   }
 
-  let best = game.bestMove(1_00, 20, player);
+  let best = game.bestMove(BOT_THINK_TIME, 20, player);
   console.log(best);
   slideInPiece(best % 7);
+}
+
+function handleWin() {
+  if (game.blueWon) {
+    winStatus.innerHTML = "Blue Wins!";
+    winStatus.classList.add("win-status-visible", "win-status-blue");
+  }
+  if (game.redWon) {
+    winStatus.innerHTML = "Red Wins!";
+    winStatus.classList.add("win-status-visible", "win-status-red");
+  }
 }
 
 game = new Board();
 
 //Create board
 for (let i = 0; i < 6 * 7; i += 1) {
-  let square = document.createElement("div");
-  square.ondragstart = () => false;
-  square.classList.add("square");
+  let square = squares[i];
 
   let ind = 35 - i + 2 * (i % 7);
   let piece = pieces[ind];
@@ -160,10 +191,15 @@ for (let i = 0; i < 6 * 7; i += 1) {
     game.setSquare(ind, RED);
   }
 
+  square.ondragstart = () => false;
   square.onmousemove = () => suggestPieceOverColumn(i % 7);
   square.onmouseout = () => removeSuggestedPiece(i % 7);
   square.onclick = () => slideInPiece(i % 7);
+}
 
-  board.appendChild(square);
-  squares.push(square);
+//Random chance if bot should go first or not.
+let botFirst = Math.random() > 0.5;
+if (botFirst) {
+  botPlay(player);
+  player = player == BLUE ? RED : BLUE;
 }
