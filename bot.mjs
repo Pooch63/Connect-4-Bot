@@ -631,3 +631,6 @@ const log = new debug.Log("./", {
 });
 log.clearLog();
 log.write("new stuff!");
+
+b.setBoardByMoves([2, -1, -1], [3, 4, 5], false);
+console.log(b.bestMove(100, 20, BLUE));

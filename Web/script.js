@@ -162,7 +162,90 @@ function botPlay(player) {
   slideInPiece(best % 7);
 }
 
+//Get indices of winning squares after a win has occurred (since   vn.,m,)
+function getWinningIndices(type) {
+  let indices = [];
+
+  const checkForConsecutives = (row) => {
+    let consecutive = 0;
+    for (let square of row) {
+      if (square == type) consecutive += 1;
+      else consecutive = 0;
+
+      if (consecutive >= WINNING_LENGTH) return true;
+    }
+  };
+
+  for (let row = 0; row < HEIGHT; row += 1) {
+    //Number of pieces in a row we've found
+    let y = row * WIDTH;
+
+    for (let x = 0; x < WIDTH - WINNING_LENGTH + 1; x += 1) {
+      let square = game.board[x + y];
+
+      let row_ = game.board.slice(y + x, y + x + WINNING_LENGTH);
+      if (checkForConsecutives(row_)) {
+        for (let i = 0; i < 4; i += 1) indices.push(x + i);
+        return indices;
+      }
+    }
+  }
+
+  //Add columns
+  for (let column = 0; column < WIDTH; column += 1) {
+    //Number of pieces in a row we've found
+    let consecutive = 0;
+
+    for (let y = 0; y < HEIGHT; y += 1) {
+      let index = column + y * WIDTH;
+      let square = game.board[index];
+      if (square == type) consecutive += 1;
+
+      if (consecutive == 4) {
+        for (let i = 0; i < 4; i += 1) indices.push((y - i) * WIDTH + column);
+        return indices;
+      }
+
+      if (square != type) consecutive = 0;
+    }
+  }
+  //Add diagonals
+  for (let index of game.diagonalCheckStarts) {
+    let lineLength = WIDTH - (index % WIDTH);
+
+    //Set array that will store the pieces in the left-to-right diagonal on the board
+    //and the left-to-right diagonal on the mirrored board.
+    let diagonal = [],
+      mirrorDiagonal = [];
+
+    let currentIndex = index;
+
+    while (lineLength-- > 0) {
+      diagonal.push(game.board[currentIndex]);
+      mirrorDiagonal.push(game.mirroredBoard[currentIndex]);
+      currentIndex = currentIndex + WIDTH + 1;
+    }
+
+    for (let i = 0; i < diagonal.length; i += 1) {
+      if (checkForConsecutives(diagonal.slice(i, i + WINNING_LENGTH))) {
+        let ind = index + (WIDTH + 1) * i;
+        for (let h = 0; h < 4; h += 1) indices.push(ind + (WIDTH + 1) * h);
+        return indices;
+      }
+      if (checkForConsecutives(mirrorDiagonal.slice(i, i + WINNING_LENGTH))) {
+        let ind = Board.mirrorIndex(index) + (WIDTH - 1) * i;
+        for (let h = 0; h < 4; h += 1) indices.push(ind + (WIDTH - 1) * h);
+        return indices;
+      }
+    }
+  }
+
+  return indices;
+}
+
 function handleWin() {
+  if (!game.blueWon && !game.redWon) return;
+
   if (game.blueWon) {
     winStatus.innerHTML = "Blue Wins!";
     winStatus.classList.add("win-status-visible", "win-status-blue");
@@ -171,15 +254,34 @@ function handleWin() {
     winStatus.innerHTML = "Red Wins!";
     winStatus.classList.add("win-status-visible", "win-status-red");
   }
+
+  //Make all pieces but the ones part of the win faded
+  let type = game.blueWon ? BLUE : RED;
+  let indices = getWinningIndices(type);
+  for (let i = 0; i < squares.length; i += 1) {
+    let boardInd = squareElementIndexToBoardIndex(i);
+    let piece = game.board[boardInd];
+
+    if (piece == EMPTY) continue;
+    if (piece != type) {
+      squares[i].classList.add("faded");
+      continue;
+    }
+
+    console.log(indices, boardInd);
+    if (!indices.includes(boardInd)) squares[i].classList.add("faded");
+  }
 }
 
 game = new Board();
+
+const squareElementIndexToBoardIndex = (i) => 35 - i + 2 * (i % 7);
 
 //Create board
 for (let i = 0; i < 6 * 7; i += 1) {
   let square = squares[i];
 
-  let ind = 35 - i + 2 * (i % 7);
+  let ind = squareElementIndexToBoardIndex(i);
   let piece = pieces[ind];
 
   if (piece == "b") {

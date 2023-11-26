@@ -51,6 +51,10 @@ body {
   background-color: red;
 }
 
+.faded::after {
+  opacity: 0.4;
+}
+
 .suggested::before {
   content: "";
   width: 75%;
@@ -101,9 +105,7 @@ body {
   width: 50%;
   height: 20%;
   display: flex;
-  /* opacity: 0.95; */
 
-  /* transition: opacity 1s; */
   animation: win 0.75s;
   animation-fill-mode: forwards;
 }
@@ -138,12 +140,14 @@ body {
   #time-slider::-webkit-slider-runnable-track {
     height: var(--slider-height);
     -webkit-appearance: none;
+    appearance: none;
     color: #13bba4;
     margin-top: -1px;
   }
   #time-slider::-webkit-slider-thumb {
     width: 0;
     -webkit-appearance: none;
+    appearance: none;
     height: var(--slider-height);
     box-shadow: calc(-1 * var(--board-width)) 0 0 var(--board-width) #43e5f7;
   }
