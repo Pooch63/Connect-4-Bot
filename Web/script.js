@@ -185,7 +185,7 @@ function getWinningIndices(type) {
 
       let row_ = game.board.slice(y + x, y + x + WINNING_LENGTH);
       if (checkForConsecutives(row_)) {
-        for (let i = 0; i < 4; i += 1) indices.push(x + i);
+        for (let i = 0; i < 4; i += 1) indices.push(x + y + i);
         return indices;
       }
     }

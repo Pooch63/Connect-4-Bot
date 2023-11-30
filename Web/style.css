@@ -200,3 +200,8 @@ body {
     font-size: 1rem;
   }
 }
+@media (max-width: 400px) {
+  .win-status {
+    font-size: 0.7rem;
+  }
+}
