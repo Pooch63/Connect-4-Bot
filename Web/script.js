@@ -57,6 +57,9 @@ let lastSquareMove = 0;
 //At what column is the piece we're animating currently at?
 let currentAnimationColumn = null;
 
+//Are they playing against the bot?
+const BOT_PLAY = true;
+
 let game = new Board();
 
 function suggestPieceOverColumn(col) {
@@ -129,8 +132,9 @@ function animateSlideIn(col, floor) {
     player = player == RED ? BLUE : RED;
 
     if (
-      (player == RED && redPlayer == BOT) ||
-      (player == BLUE && bluePlayer == BOT)
+      ((player == RED && redPlayer == BOT) ||
+        (player == BLUE && bluePlayer == BOT)) &&
+      BOT_PLAY
     ) {
       botPlay(player);
     }
@@ -301,7 +305,7 @@ for (let i = 0; i < 6 * 7; i += 1) {
 
 //Random chance if bot should go first or not.
 let botFirst = Math.random() > 0.5;
-if (botFirst) {
+if (botFirst && BOT_PLAY) {
   botPlay(player);
   player = player == BLUE ? RED : BLUE;
 }
