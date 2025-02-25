@@ -634,3 +634,16 @@ log.write("new stuff!");
 
 b.setBoardByMoves([2, -1, -1], [3, 4, 5], false);
 console.log(b.bestMove(100, 20, BLUE));
+
+console.time();
+b.minimax(
+  9,
+  true,
+  9,
+  Number.NEGATIVE_INFINITY,
+  Number.POSITIVE_INFINITY,
+  Date.now(),
+  1000000
+);
+// for (let i = 0; i < 10_000_000; i += 1) b.calcLanes();
+console.timeEnd();
