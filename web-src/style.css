@@ -60,7 +60,7 @@ body {
   width: 75%;
   height: 75%;
   position: absolute;
-  /* We want the suggested piece to float right above the square */
+  /* We want the suggested piece to float right above the square. */
   top: calc(12.5% - 100%);
   left: 12.5%;
   border-radius: 50%;

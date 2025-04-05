@@ -44,9 +44,9 @@ const evalTable = [
 ];
 
 class Board {
-  //Given an index on the board, return the index of that spot reflected across
-  //the vertical middle of the board. E.G., if passed the index of (2, 5) on a 6 x 7 board,
-  //returns (4, 5).
+  // Given an index on the board, return the index of that spot reflected across
+  // the vertical middle of the board. E.G., if passed the index of (2, 5) on a 6 x 7 board,
+  // returns (4, 5).
   static mirrorIndex(index) {
     let mod = index % WIDTH;
     return index - mod + (WIDTH - 1 - mod);

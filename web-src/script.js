@@ -14,7 +14,7 @@ const board = document.getElementsByClassName("board")[0];
 
 const winStatus = document.getElementsByClassName("win-status")[0];
 
-//In milliseconds
+// In milliseconds
 let BOT_THINK_TIME = 30;
 
 const botThinkTimeInput = document.getElementById("bot-think-time-input");
