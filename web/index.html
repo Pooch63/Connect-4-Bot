@@ -1,82 +1,49 @@
 <!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Connect 4 Board</title>
 
-    <link rel="stylesheet" href="style.css" />
-  </head>
-  <body>
-    <div class="board">
-      <div class="win-status"></div>
-      <div class="square"></div>
-      <div class="square"></div>
-      <div class="square"></div>
-      <div class="square"></div>
-      <div class="square"></div>
-      <div class="square"></div>
-      <div class="square"></div>
-      <div class="square"></div>
-      <div class="square"></div>
-      <div class="square"></div>
-      <div class="square"></div>
-      <div class="square"></div>
-      <div class="square"></div>
-      <div class="square"></div>
-      <div class="square"></div>
-      <div class="square"></div>
-      <div class="square"></div>
-      <div class="square"></div>
-      <div class="square"></div>
-      <div class="square"></div>
-      <div class="square"></div>
-      <div class="square"></div>
-      <div class="square"></div>
-      <div class="square"></div>
-      <div class="square"></div>
-      <div class="square"></div>
-      <div class="square"></div>
-      <div class="square"></div>
-      <div class="square"></div>
-      <div class="square"></div>
-      <div class="square"></div>
-      <div class="square"></div>
-      <div class="square"></div>
-      <div class="square"></div>
-      <div class="square"></div>
-      <div class="square"></div>
-      <div class="square"></div>
-      <div class="square"></div>
-      <div class="square"></div>
-      <div class="square"></div>
-      <div class="square"></div>
-      <div class="square"></div>
-    </div>
-
-    <br />
-
-    <input
-      type="range"
-      name=""
-      id="time-slider"
-      min="1"
-      max="1000"
-      value="30"
-    />
-    <p id="bot-think-time-p">
-      Bot think time:
+<head>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="header">
+    <h1>Connect 4 Bot</h1>
+    <h3>About</h3>
+    <p>
+      I made this bot in early 8th grade. I lost our homeroom's Connect 4
+      tournament, and my science teacher started making fun of me.
       <br />
-      <input type="number" value="30" id="bot-think-time-input" />
-      <span id="bot-think-time-unit">milliseconds</span>
+      <b>He had to pay.</b>
     </p>
-
+  </div>
+  <div class="more">
     <br />
+    <div class="more-inner">
+      <div class="section">
+        <h3 class="section-header">How it works:</h3>
+        <p class="section-info">
+          This is a simple Connect 4 bot that uses minimax. It uses an array to
+          store the board position. After this bot, I spent a few weeks making a
+          totally different one written in TypeScript. I wanted to use 64 bit
+          integers to store the board info, like in
+          <a href="http://blog.gamesolver.org/">Pascal Pons' C++ version</a>.
+          Since you can only use bitwise operations on 32-bit integers in JS (so
+          weird, right?), I had to use Bigints.
 
-    <script>
-      const packages = {};
-    </script>
-    <script src="/Connect-4-Bot/web/bot.js"></script>
-    <script src="/Connect-4-Bot/web/board.js"></script>
-  </body>
-</html>
+          <br /><br />
+
+          Yeah, suffice to say, I didn't get very far with that. So, thus far,
+          arrays seem to be the way to go, and this bot triumphs over every
+          other attempt of mine at a JS/TS bot.
+        </p>
+      </div>
+
+      <div class="section">
+        <h3 class="section-header">Try it out:</h3>
+        <p class="section-info">
+          <a href="/Connect-4-Bot/web/bot"
+            >See the max thinking time you can beat it at</a
+          >
+        </p>
+      </div>
+    </div>
+  </div>
+</body>
