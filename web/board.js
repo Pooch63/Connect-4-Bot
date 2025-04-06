@@ -1,575 +1,311 @@
-const WIDTH = 7;
-const HEIGHT = 6;
-const WINNING_LENGTH = 4;
-
-const EMPTY = 0;
-const BLUE = 1;
-const RED = 2;
-
-const { min, max } = Math;
-
-//Clones object. Assumes values are primitives
-function cloneObject(obj_) {
-  let obj = {};
-  for (let key in obj_) obj[key] = obj_[key];
-  return obj;
-}
-//Clones 1D array of primitives
-function clone1DArray(arr_) {
-  let arr = [];
-  for (let el of arr_) arr.push(el);
-  return arr;
-}
-
-//How many properties are in an object?
-function countProperties(obj) {
-  let count = 0;
-
-  for (let prop in obj) {
-    if (obj.hasOwnProperty(prop)) count++;
-  }
-  return count;
-}
-
-//Please note: This table is one part of the evaluation function
-//I saw it on: https://softwareengineering.stackexchange.com/questions/263514/why-does-this-evaluation-function-work-in-a-connect-four-game-in-java
-//prettier-ignore
-const evalTable = [
-  3, 4, 5, 7, 5, 4, 3,
-  4, 6, 8, 10, 8, 6, 4,
-  5, 8, 11, 13, 11, 8, 5,
-  5, 8, 11, 13, 11, 8, 5,
-  4, 6, 8, 10, 8, 6, 4,
-  3, 4, 5, 7, 5, 4, 3,
-];
-
-class Board {
-  // Given an index on the board, return the index of that spot reflected across
-  // the vertical middle of the board. E.G., if passed the index of (2, 5) on a 6 x 7 board,
-  // returns (4, 5).
-  static mirrorIndex(index) {
-    let mod = index % WIDTH;
-    return index - mod + (WIDTH - 1 - mod);
-  }
-  constructor() {
-    /* Format of board store type:
-         0: Bottom left corner of board (0, 0)
-         1: Square next to bottom left corner (1, 0)
-         And etc.
-         In a 7 x 6 board, the top right corner would be at (6, 5) and at index 41 (AKA 6 + 5 * WIDTH)
-    */
-    this.board = [];
-    //Mirrored board is, as you can guess, a board mirrored across the middle,
-    //so a square on (1, 0) on the normal 7 x 6 board would be represented as
-    //on square (5, 0). Used in optimizing diagonal win checks, so we run a left-to-right
-    //diagonal win test on the board AND the mirrored board, instead of a left-to-right AND
-    //and right-to-left test on the board.
-    this.mirroredBoard = [];
-    for (let i = 0; i < WIDTH * HEIGHT; i += 1) {
-      this.board.push(EMPTY);
-      this.mirroredBoard.push(EMPTY);
-    }
-
-    //If we get our piece on these board indices, we win
-    //The indices are the keys
-    this.blueLanes = {};
-    //If the opponent gets their piece on these board indices, they win
-    //The indices are the keys
-    this.redLanes = {};
-
-    //Highest square on each column (stores the y-index)
-    this.floors = [];
-    for (let i = 0; i < WIDTH; i += 1) this.floors.push(0);
-
-    //Precalculate all the positions on the board from which to check for
-    //left-to-right diagonal wins.
-    this.diagonalCheckStarts = [];
-    if (WIDTH >= WINNING_LENGTH) {
-      //Left perim
-      for (let y = HEIGHT - WINNING_LENGTH; y >= 0; y -= 1) {
-        this.diagonalCheckStarts.push(0 + y * WIDTH);
-      }
-      //Bottom border
-      for (let x = WIDTH - WINNING_LENGTH; x > 0; x -= 1) {
-        this.diagonalCheckStarts.push(x);
-      }
-    }
-
-    this.history = [];
-
-    this.blueWon = false;
-    this.redWon = false;
-
-    /*Cache of different positions and their evaluations.
-    Example entry:
-    "1,2,1,1,1,2,1,0,2,1,2,1,0,0,0,0,2,1,2,0,0,0,0,1,2,2,0,0,0,0,0,1,0,0,0,0,0,0,2,0,0,0-B": {
-      //This is the depth at which we evaluated the position
-      depth: 5,
-      eval: -99999995
-    }*/
-    this.cache = {};
-  }
-  savePosToHistory() {
-    this.history.push({
-      board: clone1DArray(this.board),
-      mirroredBoard: clone1DArray(this.mirroredBoard),
-      floors: clone1DArray(this.floors),
-      redLanes: cloneObject(this.redLanes),
-      blueLanes: cloneObject(this.blueLanes),
-      blueWon: this.blueWon,
-      redWon: this.redWon,
-    });
-  }
-  //Reverts to last position in history
-  goToLastPos() {
-    let last = this.history.pop();
-    this.board = last.board;
-    this.mirroredBoard = last.mirroredBoard;
-    this.floors = last.floors;
-    this.redLanes = last.redLanes;
-    this.blueLanes = last.blueLanes;
-    this.blueWon = last.blueWon;
-    this.redWon = last.redWon;
-  }
-
-  getSquare(x, y) {
-    return this.board[x + y * WIDTH];
-  }
-  //A "lane" is an index that, if red or blue sets their piece in, they will win.
-  //Calculate the red and blue lanes.
-  //If red won when this is called and updateWinner = true, we update that
-  //red's win status in the board object.
-  calcLanes(type) {
-    let lanes = {};
-
-    const checkForConsecutives = (row) => {
-      let consecutive = 0;
-      for (let square of row) {
-        if (square == type) consecutive += 1;
-        else consecutive = 0;
-
-        if (consecutive >= WINNING_LENGTH) return true;
-      }
-    };
-
-    for (let row = 0; row < HEIGHT; row += 1) {
-      //Number of pieces in a row we've found
-      let y = row * WIDTH;
-
-      for (let x = 0; x < WIDTH; x += 1) {
-        let square = this.board[x + y];
-        if (square != EMPTY) continue;
-
-        let row_ = this.board.slice(y, y + WIDTH);
-        row_[x] = type;
-        if (checkForConsecutives(row_) && this.board[x + y] == EMPTY) {
-          lanes[x + y] = 1;
-        }
-      }
-    }
-
-    //Add columns
-    for (let column = 0; column < WIDTH; column += 1) {
-      //Number of pieces in a row we've found
-      let consecutive = 0;
-
-      for (let y = 0; y < HEIGHT; y += 1) {
-        let index = column + y * WIDTH;
-        let square = this.board[index];
-        if (square == type) consecutive += 1;
-
-        if (
-          square == EMPTY &&
-          consecutive >= WINNING_LENGTH - 1 &&
-          this.board[index] == EMPTY
-        ) {
-          lanes[index] = 1;
-        }
-
-        if (square != type) consecutive = 0;
-      }
-    }
-    //Add diagonals
-    for (let index of this.diagonalCheckStarts) {
-      let lineLength = WIDTH - (index % WIDTH);
-
-      //Set array that will store the pieces in the left-to-right diagonal on the board
-      //and the left-to-right diagonal on the mirrored board.
-      let diagonal = [],
-        mirrorDiagonal = [];
-
-      let currentIndex = index;
-      while (lineLength-- > 0) {
-        diagonal.push(this.board[currentIndex]);
-        mirrorDiagonal.push(this.mirroredBoard[currentIndex]);
-        currentIndex = currentIndex + WIDTH + 1;
-      }
-
-      for (let i = 0; i < diagonal.length; i += 1) {
-        if (diagonal[i] == EMPTY) {
-          let diagonalCopy = diagonal.slice(0);
-          diagonalCopy[i] = type;
-          let ind = index + (WIDTH + 1) * i;
-          if (checkForConsecutives(diagonalCopy) && this.board[ind] == EMPTY) {
-            lanes[ind] = 1;
-          }
-        }
-        if (mirrorDiagonal[i] == EMPTY) {
-          let mirrorDiagonalCopy = mirrorDiagonal.slice(0);
-          mirrorDiagonalCopy[i] = type;
-          let ind = Board.mirrorIndex(index) + (WIDTH - 1) * i;
-          if (
-            checkForConsecutives(mirrorDiagonalCopy) &&
-            this.board[ind] == EMPTY
-          ) {
-            lanes[ind] = 1;
-          }
-        }
-      }
-    }
-
-    return lanes;
-  }
-  setSquare(index, type, calcLanes = true, x = index % WIDTH) {
-    this.board[index] = type;
-
-    //Update the mirrored version of the board as well.
-    this.mirroredBoard[Board.mirrorIndex(index)] = type;
-
-    this.floors[x] += 1;
-
-    if (!calcLanes) return;
-
-    if (type == BLUE) {
-      //Did blue win?
-      if (this.blueLanes[index] == 1) {
-        this.blueWon = true;
-        return;
-      }
-
-      this.blueLanes = this.calcLanes(BLUE);
-      //Remove red's lane if blue took it
-      if (this.redLanes[index] == 1) this.redLanes[index] = 0;
-    } else {
-      //Did red win?
-      if (this.redLanes[index] == 1) {
-        this.redWon = true;
-        return;
-      }
-
-      this.redLanes = this.calcLanes(RED);
-      //Remove blue's lane if red took it
-      if (this.blueLanes[index] == 1) this.blueLanes[index] = 0;
-    }
-  }
-  setSquareFromPos(x, y, type, calcLanes = true) {
-    return this.setSquare(x + y * WIDTH, type, calcLanes, x);
-  }
-
-  //Out of a bunch of different lanes, return the index of a play that wins
-  //Null if no win
-  //Accepts a list of indices where a piece can be played
-  playableLane(avail, lanes) {
-    //Check if we have an immediate win.
-    for (let index of avail) if (lanes[index] == 1) return index;
-  }
-
-  getPlayableColumns() {
-    let avail = [];
-    for (let i = 0; i < this.floors.length; i += 1) {
-      if (this.floors[i] != HEIGHT - 1) avail.push(i);
-    }
-
-    return avail;
-  }
-  getPlayableIndices() {
-    let indices = [];
-    for (let i = 0; i < this.floors.length; i += 1) {
-      let floor = this.floors[i];
-      if (floor <= HEIGHT - 1) indices.push(floor * WIDTH + i);
-    }
-
-    return indices;
-  }
-
-  //Accepts the player whose turn it is to move (red or blue)
-  evalPos(type, originalDepth) {
-    if (this.blueWon) return 100_000_000 - originalDepth;
-    if (this.redWon) return -100_000_000 + originalDepth;
-
-    let indices = this.getPlayableIndices();
-    let blue = type == BLUE;
-    let lanes = blue ? this.blueLanes : this.redLanes;
-
-    //Check if we have an immediate win.
-    let win = this.playableLane(indices, lanes);
-    if (win != null) {
-      if (blue) return 100_000_000 - originalDepth;
-      else return -100_000_000 + originalDepth;
-    }
-
-    let score = 0;
-    //Blue and red lane counts
-    let blueLaneCount = countProperties(this.blueLanes),
-      redLaneCount = countProperties(this.redLanes);
-
-    score = score + blueLaneCount * 1.2;
-    score = score - redLaneCount * 1.2;
-
-    for (let i = 0; i < WIDTH * HEIGHT; i += 1) {
-      if (this.board[i] == BLUE) score += evalTable[i];
-      else if (this.board[i] == RED) score -= evalTable[i];
-    }
-
-    return score;
-  }
-
-  //Depth: Current depth
-  //Player: Is it a maximizing player's turn?
-  //IMPORTANT: Blue should be maximizing player, red should be minimizing player
-  //Original depth: Obviously the original depth
-  //Alpha and beta: look up minimax algorithm
-  //Start time: time in milliseconds that the search started
-  //Max time: max time in milliseconds that the search may last for
-  minimax(
-    depth,
-    maximizingPlayer,
-    originalDepth,
-    alpha,
-    beta,
-    startTime,
-    maxTime
-  ) {
-    if (Date.now() - startTime >= maxTime) return;
-
-    //Depth we're currently at.
-    let currentDepth = originalDepth - depth + 1;
-
-    //If a player won, we might have some moves, but it's already over
-    //We add the different between the original depth and the current depth
-    //so that we prioritize wins that are quicker.
-    if (this.blueWon) return 100_000_000 - currentDepth;
-    if (this.redWon) return -100_000_000 + currentDepth;
-
-    if (depth <= 1) {
-      return this.evalPos(maximizingPlayer ? BLUE : RED, originalDepth);
-    }
-    let indices = this.getPlayableIndices();
-
-    //No moves, it's a draw!
-    if (indices.length == 0) return 0;
-
-    let bestScore = maximizingPlayer
-      ? Number.NEGATIVE_INFINITY
-      : Number.POSITIVE_INFINITY;
-
-    let squareType = maximizingPlayer ? BLUE : RED;
-
-    if (maximizingPlayer) {
-      for (let index of indices) {
-        this.savePosToHistory();
-        this.setSquare(index, squareType, true);
-
-        if (Date.now() - startTime >= maxTime) {
-          this.goToLastPos();
-          return bestScore;
-        }
-
-        let score = this.minimax(
-          depth - 1,
-          !maximizingPlayer,
-          originalDepth,
-          alpha,
-          beta,
-          startTime,
-          maxTime
-        );
-
-        this.goToLastPos();
-
-        if (Date.now() - startTime >= maxTime) return bestScore;
-
-        if (score > bestScore) bestScore = score;
-        alpha = max(score, alpha);
-        if (beta <= alpha) break;
-      }
-    }
-    if (!maximizingPlayer) {
-      for (let index of indices) {
-        this.savePosToHistory();
-        this.setSquare(index, squareType, true);
-
-        if (Date.now() - startTime >= maxTime) {
-          this.goToLastPos();
-          return bestScore;
-        }
-
-        let score = this.minimax(
-          depth - 1,
-          !maximizingPlayer,
-          originalDepth,
-          alpha,
-          beta,
-          startTime,
-          maxTime
-        );
-
-        this.goToLastPos();
-
-        if (Date.now() - startTime >= maxTime) return bestScore;
-
-        if (score < bestScore) bestScore = score;
-        beta = min(score, beta);
-        if (beta <= alpha) break;
-      }
-    }
-    return bestScore;
-  }
-
-  //Returns 0 - WIDTH, basically column where we want to play
-  bestMove(time = 1_000, maxDepth = 20, player = BLUE) {
-    let start = Date.now();
-
-    let blue = player == BLUE;
-    let red = player == RED;
-
-    let indices = this.getPlayableIndices();
-
-    let bestMove = indices[0];
-
-    for (let x = 1; x <= maxDepth; x += 1) {
-      /*
-      What are we doing here?
-      We always update the best move with the best move OF THAT interation.
-      As an example, say we're searching at depth 3, and red (the minimizing player) finds
-      a play at index 23 that scores -100. We then search at depth 4, and red finds a play at
-      index 20 that only scores -50. We'll still update the current best move as index 20.
-
-      Why do we do this? Well, take our example. After searching at depth 4, red finds that
-      the best play is index 20, which scores -50. If we then search at depth 5 and realize
-      that playing at index 20 ACTUALLY yields a score of Infinity, red will OBVIOUSLY not want to
-      play that, because that will lead to a win for blue. However, if we check whether or not we should
-      update the best move, we would normally check if the current score is better than the last best score.
-      -50 < INFINITY, so we would NOT update the best move and score. This means that by comparing the best move
-      from seaches at depth n doesnn't account for realizing that best move is actually losing at a further depth.
-
-      To compensate for that, we again update the best move with the best move of one SINGLE iteration.
-      I.E., when we move on to depth 2, we will completely disregard the best move we found at depth 1.
-      
-      BUT, say the move in the first column is a losing move. If we go to depth, say, 7, and the search runs out
-      of time after checking the FIRST move, we'll return that one even if we had a winning play. This is because,
-      remember, we're using the best move from ONLY searches at depth 7.
-      To fix this, after every search, we can update the move list to go from best to worst, based on the results from
-      the previous search depth. In this way, we'll check the best possible moves first, so if we run out of time,
-      there's a better chance we'll have already searched the winning move.
-      */
-      let newIndices = [];
-      let scores = [];
-
-      console.log("X's and o's", x, bestMove);
-      for (let index of indices) {
-        this.savePosToHistory();
-        this.setSquare(index, player, true);
-
-        if (Date.now() - start >= time) {
-          this.goToLastPos();
-          return bestMove;
-        }
-
-        let score = this.minimax(
-          x,
-          red,
-          x,
-          Number.NEGATIVE_INFINITY,
-          Number.POSITIVE_INFINITY,
-          start,
-          time
-        );
-        this.goToLastPos();
-
-        if (Date.now() - start >= time) return bestMove;
-
-        //Format moves so that next iteration, we look at the most promising moves first
-
-        //If we've found a losing move, we don't want to explore it at a lower depth,
-        //so we only add moves if they have some kind of winning potential.
-        if (
-          (red && score != Number.POSITIVE_INFINITY) ||
-          (blue && score != Number.NEGATIVE_INFINITY)
-        ) {
-          if (newIndices.length == 0) {
-            newIndices.push(index);
-            scores.push(score);
-          } else {
-            let ind = 0;
-            for (let i = 0; i < scores.length; i += 1) {
-              if (blue && scores[i] > score) ind += 1;
-              if (red && scores[i] < score) ind += 1;
-            }
-            scores.splice(ind, 0, score);
-            newIndices.splice(ind, 0, index);
-          }
-        }
-
-        bestMove = newIndices[0] || indices[0];
-      }
-      indices = newIndices;
-    }
-    return bestMove;
-  }
-
-  //Debug purposes. Blue and red moves are integer arrays of columns to played.
-  //Makes the blue's column move, then red's, then blue's, etc. -1 means don't make a move
-  //for that particular side that turn.  By default, subtracts one from the columns.
-  //E.G., if you pass 7 as a column and don't set subtract to true, the column at index 7 doesn't exist,
-  //so behavior is undefined. If your column range IS 1-7 and NOT 0-6, set subtract to true.
-  setBoardByMoves(blueMoves, redMoves, subtract = true) {
-    for (let i = 0; i < Math.max(blueMoves.length, redMoves.length); i += 1) {
-      let p = blueMoves[i] - (subtract ? 1 : 0),
-        o = redMoves[i] - (subtract ? 1 : 0);
-      if (!isNaN(p) && p >= 0) {
-        this.setSquareOnColumn(p, BLUE);
-      }
-      if (!isNaN(o) && o >= 0) {
-        this.setSquareOnColumn(o, RED);
-      }
-    }
-  }
-  //Debug purposes. Slide a piece in at a certain column, on top of that column's floor
-  setSquareOnColumn(column, player) {
-    this.setSquareFromPos(column, this.floors[column], player);
-  }
-  //Debug purposes. Given board array, update this board array,
-  //floors, game history, etc.
-  setBoardByArray(board) {
-    for (let i = 0; i < WIDTH * HEIGHT; i += 1) {
-      let p = board[i];
-      if (p != EMPTY) this.setSquareOnColumn(i % WIDTH, p);
-    }
-  }
-  //Debug purposes. Given board str, e.g. BBRRRBBEBRRRBEEERREEEEEBBEEEEEEEEEEEEEEEEE,
-  //set board such that the first character (B) is at index 0 of the board array and
-  //the last (E) is at index 41. B means BLUE, R means RED, and E means EMPTY.
-  //String may be less than 42 characters. Any spots not provided are presumed to be empty.
-  setBoardByBoardStr(str) {
-    let board = [];
-    let i = WIDTH * HEIGHT;
-    while (i-- > 0) board.push(EMPTY);
-
-    str = str.toUpperCase();
-
-    let c = -1;
-    while (++c < str.length) {
-      let p = str[c];
-      if (p == "B") board[c] = BLUE;
-      if (p == "R") board[c] = RED;
-    }
-
-    this.setBoardByArray(board);
-  }
-}
-
-let b = new Board();
-
 while (packages == undefined);
-packages.board = true;
+while (packages.board == null);
+
+const repeat = (n, c) => {
+  let s = "";
+  while (c-- > 0) s += n;
+  return s;
+};
+const url = new URL(window.location.href);
+let pieces = (url.searchParams.get("board") ?? repeat(42, "e")).toLowerCase();
+
+const squares = document.getElementsByClassName("square");
+const board = document.getElementsByClassName("board")[0];
+
+const winStatus = document.getElementsByClassName("win-status")[0];
+
+// In milliseconds
+let BOT_THINK_TIME = 30;
+
+const botThinkTimeInput = document.getElementById("bot-think-time-input");
+const botThinkTimeUnit = document.getElementById("bot-think-time-unit");
+const timeSlider = document.getElementById("time-slider");
+
+timeSlider.oninput = () => {
+  let time = parseInt(timeSlider.value);
+  botThinkTimeInput.value = time;
+
+  if (time == 1) botThinkTimeUnit.innerHTML = "millisecond";
+  else botThinkTimeUnit.innerHTML = "milliseconds";
+
+  BOT_THINK_TIME = parseInt(timeSlider.value);
+};
+botThinkTimeInput.oninput = () => {
+  let time = parseFloat(botThinkTimeInput.value);
+  BOT_THINK_TIME = time;
+  timeSlider.value = time;
+
+  if (time == 1) botThinkTimeUnit.innerHTML = "millisecond";
+  else botThinkTimeUnit.innerHTML = "milliseconds";
+};
+
+const HUMAN = 0;
+const BOT = 1;
+let bluePlayer = HUMAN;
+let redPlayer = BOT;
+
+//Is it red or blue's turn to move?
+let player = BLUE;
+
+//When a piece is falling down into its spot, how many milliseconds does it take
+//to fall from one square to another
+let squareFallTime = 20;
+//Is a piece falling?
+let animating = false;
+//At what time did we last move a piece from one square to another in a animation?
+let lastSquareMove = 0;
+//At what column is the piece we're animating currently at?
+let currentAnimationColumn = null;
+
+//Are they playing against the bot?
+const BOT_PLAY = true;
+
+let game = new Board();
+
+function suggestPieceOverColumn(col) {
+  if (game.blueWon || game.redWon) return false;
+  if (animating) return false;
+  let square = squares[col];
+  square.classList.add("suggested");
+  square.classList.remove("suggested-red", "suggested-blue");
+  square.classList.add(`suggested-${player == RED ? "red" : "blue"}`);
+}
+function removeSuggestedPiece(col) {
+  let square = squares[col];
+  square.classList.remove("suggested");
+  square.classList.remove("suggested-red", "suggested-blue");
+}
+
+//Make a square on the board clear, red, or blue
+//Note that y-values are inverted. I.E., if you put in 1,
+//the square at the y-ind 4 will be altered.
+const clear = (x, y) => {
+  let square = squares[x + y * 7];
+  square.classList.remove("red", "blue");
+};
+const red = (x, y) => {
+  clear(x, y);
+  squares[x + y * 7].classList.add("red");
+};
+const blue = (x, y) => {
+  clear(x, y);
+  squares[x + y * 7].classList.add("blue");
+};
+
+//Ad a piece to a column
+function slideInPiece(col) {
+  if (game.blueWon || game.redWon) return false;
+
+  //Are we already animating something?
+  if (animating) return false;
+
+  //Is the column already full?
+  if (game.board[7 * 5 + col] != EMPTY) return;
+  lastSquareMove = Date.now();
+
+  currentAnimationColumn = 5;
+  let floor = 7;
+
+  for (let ind = col; ind < 6 * 7; ind += 7) {
+    if (game.board[ind] == EMPTY) {
+      floor = (ind - (ind % 7)) / 7;
+      break;
+    }
+  }
+
+  animating = true;
+  removeSuggestedPiece(col);
+  animateSlideIn(col, floor);
+}
+function animateSlideIn(col, floor) {
+  if (game.blueWon || game.redWon) return false;
+
+  //We're not ready to continue the animation!!
+  if (Date.now() - lastSquareMove < squareFallTime) {
+    return window.requestAnimationFrame(() => animateSlideIn(col, floor));
+  }
+  //We've already fully animated the piece
+  if (currentAnimationColumn < floor) {
+    animating = false;
+    currentAnimationColumn = null;
+    game.setSquareOnColumn(col, player);
+    player = player == RED ? BLUE : RED;
+
+    if (
+      ((player == RED && redPlayer == BOT) ||
+        (player == BLUE && bluePlayer == BOT)) &&
+      BOT_PLAY
+    ) {
+      botPlay(player);
+    }
+
+    handleWin();
+
+    return;
+  }
+
+  if (currentAnimationColumn < 5) clear(col, 5 - currentAnimationColumn - 1);
+
+  if (player == RED) red(col, 5 - currentAnimationColumn);
+  else blue(col, 5 - currentAnimationColumn);
+
+  lastSquareMove = Date.now();
+  currentAnimationColumn -= 1;
+  window.requestAnimationFrame(() => animateSlideIn(col, floor));
+}
+
+function botPlay(player) {
+  //Is the board COMPLETELY full?
+  for (let i = 0; i < game.floors.length; i += 1) {
+    if (game.floors[i] < 6) break;
+    if (i == game.floors.length - 1) return;
+  }
+
+  let best = game.bestMove(BOT_THINK_TIME, 20, player);
+  console.log(best);
+  slideInPiece(best % 7);
+}
+
+//Get indices of winning squares after a win has occurred (since   vn.,m,)
+function getWinningIndices(type) {
+  let indices = [];
+
+  const checkForConsecutives = (row) => {
+    let consecutive = 0;
+    for (let square of row) {
+      if (square == type) consecutive += 1;
+      else consecutive = 0;
+
+      if (consecutive >= WINNING_LENGTH) return true;
+    }
+  };
+
+  for (let row = 0; row < HEIGHT; row += 1) {
+    //Number of pieces in a row we've found
+    let y = row * WIDTH;
+
+    for (let x = 0; x < WIDTH - WINNING_LENGTH + 1; x += 1) {
+      let square = game.board[x + y];
+
+      let row_ = game.board.slice(y + x, y + x + WINNING_LENGTH);
+      if (checkForConsecutives(row_)) {
+        for (let i = 0; i < 4; i += 1) indices.push(x + y + i);
+        return indices;
+      }
+    }
+  }
+
+  //Add columns
+  for (let column = 0; column < WIDTH; column += 1) {
+    //Number of pieces in a row we've found
+    let consecutive = 0;
+
+    for (let y = 0; y < HEIGHT; y += 1) {
+      let index = column + y * WIDTH;
+      let square = game.board[index];
+      if (square == type) consecutive += 1;
+
+      if (consecutive == 4) {
+        for (let i = 0; i < 4; i += 1) indices.push((y - i) * WIDTH + column);
+        return indices;
+      }
+
+      if (square != type) consecutive = 0;
+    }
+  }
+  //Add diagonals
+  for (let index of game.diagonalCheckStarts) {
+    let lineLength = WIDTH - (index % WIDTH);
+
+    //Set array that will store the pieces in the left-to-right diagonal on the board
+    //and the left-to-right diagonal on the mirrored board.
+    let diagonal = [],
+      mirrorDiagonal = [];
+
+    let currentIndex = index;
+
+    while (lineLength-- > 0) {
+      diagonal.push(game.board[currentIndex]);
+      mirrorDiagonal.push(game.mirroredBoard[currentIndex]);
+      currentIndex = currentIndex + WIDTH + 1;
+    }
+
+    for (let i = 0; i < diagonal.length; i += 1) {
+      if (checkForConsecutives(diagonal.slice(i, i + WINNING_LENGTH))) {
+        let ind = index + (WIDTH + 1) * i;
+        for (let h = 0; h < 4; h += 1) indices.push(ind + (WIDTH + 1) * h);
+        return indices;
+      }
+      if (checkForConsecutives(mirrorDiagonal.slice(i, i + WINNING_LENGTH))) {
+        let ind = Board.mirrorIndex(index) + (WIDTH - 1) * i;
+        for (let h = 0; h < 4; h += 1) indices.push(ind + (WIDTH - 1) * h);
+        return indices;
+      }
+    }
+  }
+
+  return indices;
+}
+
+function handleWin() {
+  if (!game.blueWon && !game.redWon) return;
+
+  if (game.blueWon) {
+    winStatus.innerHTML = "Blue Wins!";
+    winStatus.classList.add("win-status-visible", "win-status-blue");
+  }
+  if (game.redWon) {
+    winStatus.innerHTML = "Red Wins!";
+    winStatus.classList.add("win-status-visible", "win-status-red");
+  }
+
+  //Make all pieces but the ones part of the win faded
+  let type = game.blueWon ? BLUE : RED;
+  let indices = getWinningIndices(type);
+  for (let i = 0; i < squares.length; i += 1) {
+    let boardInd = squareElementIndexToBoardIndex(i);
+    let piece = game.board[boardInd];
+
+    if (piece == EMPTY) continue;
+    if (piece != type) {
+      squares[i].classList.add("faded");
+      continue;
+    }
+
+    console.log(indices, boardInd);
+    if (!indices.includes(boardInd)) squares[i].classList.add("faded");
+  }
+}
+
+game = new Board();
+
+const squareElementIndexToBoardIndex = (i) => 35 - i + 2 * (i % 7);
+
+//Create board
+for (let i = 0; i < 6 * 7; i += 1) {
+  let square = squares[i];
+
+  let ind = squareElementIndexToBoardIndex(i);
+  let piece = pieces[ind];
+
+  if (piece == "b") {
+    square.classList.add("blue");
+    game.setSquare(ind, BLUE);
+  }
+  if (piece == "r") {
+    square.classList.add("red");
+    game.setSquare(ind, RED);
+  }
+
+  square.ondragstart = () => false;
+  square.onmousemove = () => suggestPieceOverColumn(i % 7);
+  square.onmouseout = () => removeSuggestedPiece(i % 7);
+  square.onclick = () => slideInPiece(i % 7);
+}
+
+//Random chance if bot should go first or not.
+let botFirst = Math.random() > 0.5;
+if (botFirst && BOT_PLAY) {
+  botPlay(player);
+  player = player == BLUE ? RED : BLUE;
+}
